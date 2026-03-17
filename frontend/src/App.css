@@ -1,0 +1,111 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #0a0a0a;
+  color: #e5e5e5;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Header ── */
+.header {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid #1a1a1a;
+}
+
+.app-name {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #525252;
+}
+
+.shruti-badge {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #404040;
+  background: #111;
+  border: 1px solid #222;
+  border-radius: 6px;
+  padding: 3px 10px;
+  letter-spacing: 0.04em;
+}
+
+/* ── Graph ── */
+.graph-container {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ── Note panel ── */
+.note-panel {
+  flex-shrink: 0;
+  height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top: 1px solid #1a1a1a;
+}
+
+.note-current {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.note-swara {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--note-color);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  transition: color 120ms ease;
+}
+
+.note-cents {
+  font-size: 1.6rem;
+  font-weight: 500;
+  color: var(--note-color);
+  font-variant-numeric: tabular-nums;
+  transition: color 120ms ease;
+}
+
+.note-label {
+  font-size: 0.8rem;
+  color: #404040;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ── Idle ── */
+.note-idle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.idle-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #252525;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.idle-text {
+  font-size: 0.8rem;
+  color: #303030;
+  letter-spacing: 0.06em;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; }
+  50%       { opacity: 0.8; }
+}
