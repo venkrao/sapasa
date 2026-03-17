@@ -19,16 +19,11 @@ PROCESS_HOP = 512      # re-run YIN every ~11 ms
 
 CONFIDENCE_THRESHOLD = 0.30
 RMS_SILENCE = 0.002    # discard below this amplitude
-MIN_FREQ = 150.0
-MAX_FREQ = 800.0
-MAX_CENTS = 50.0
+MIN_FREQ = 80.0        # ~E2 — covers most vocal ranges
+MAX_FREQ = 1200.0      # ~D6
 EMA_ALPHA = 0.15       # exponential smoothing — lower = smoother but more lag
 
-TARGETS: dict[str, float] = {
-    "Sa":  311.13,
-    "Pa":  466.70,
-    "Sa′": 622.25,
-}
+NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -130,34 +125,18 @@ def _yin_pitch(
 
 # ── Music logic ───────────────────────────────────────────────────────────────
 
-def _cents(sung: float, target: float) -> float:
-    return 1200.0 * math.log2(sung / target)
+def _nearest_note(freq: float) -> tuple[str, float]:
+    """Return (note_name, cents_deviation) for the nearest chromatic pitch.
 
-
-def _identify_swara(freq: float) -> tuple[str | None, float | None, float | None]:
-    """Return (swara, cents_deviation, corrected_freq) or (None, None, None).
-
-    YIN can land on a subharmonic or harmonic of the true pitch. Test freq/2,
-    freq, freq×2, and freq×4 and pick whichever sits closest to a known target.
-    corrected_freq is the octave-adjusted value that actually matched (used for
-    graph plotting so the dot lands at the right pitch, not the raw detection).
+    cents_deviation is positive when sung sharp, negative when flat.
+    Always in the range (−50, +50].
     """
-    candidates = [freq / 2, freq, freq * 2, freq * 4]
-    best_swara: str | None = None
-    best_cents = float("inf")
-    best_freq = freq
-
-    for f in candidates:
-        for swara, target in TARGETS.items():
-            c = _cents(f, target)
-            if abs(c) < abs(best_cents):
-                best_cents = c
-                best_swara = swara
-                best_freq = f
-
-    if best_swara is not None and abs(best_cents) <= MAX_CENTS:
-        return best_swara, round(best_cents, 1), round(best_freq, 1)
-    return None, None, None
+    midi_f = 69.0 + 12.0 * math.log2(freq / 440.0)
+    midi   = round(midi_f)
+    cents  = (midi_f - midi) * 100.0
+    octave = midi // 12 - 1
+    name   = NOTE_NAMES[midi % 12] + str(octave)
+    return name, round(cents, 1)
 
 
 # ── Audio processing thread ───────────────────────────────────────────────────
@@ -193,12 +172,13 @@ def _process_audio() -> None:
                     _ema_freq = freq
                 else:
                     _ema_freq = EMA_ALPHA * freq + (1.0 - EMA_ALPHA) * _ema_freq
-                swara, cents, corrected_freq = _identify_swara(_ema_freq)
-                event = (
-                    {"status": "note", "swara": swara, "cents": cents, "freq": corrected_freq}
-                    if swara
-                    else {"status": "idle"}
-                )
+                note, cents = _nearest_note(_ema_freq)
+                event = {
+                    "status": "note",
+                    "note":   note,
+                    "cents":  cents,
+                    "freq":   round(_ema_freq, 1),
+                }
             else:
                 _ema_freq = None
                 event = {"status": "idle"}

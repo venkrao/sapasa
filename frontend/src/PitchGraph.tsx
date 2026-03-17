@@ -3,8 +3,8 @@ import { useCallback, useEffect, useRef } from 'react'
 // ── constants ─────────────────────────────────────────────────────────────────
 
 const WINDOW_MS = 15_000
-const MIN_FREQ = 110   // A2 — a bit below our lowest target context
-const MAX_FREQ = 750   // between F5 and F#5 — above Sa′
+const MIN_FREQ = 75    // ~D#2 — below lowest typical vocal range
+const MAX_FREQ = 1250  // ~D#6 — above highest typical vocal range
 
 const LABEL_W = 52     // px reserved for Y-axis labels
 
@@ -32,7 +32,7 @@ type TargetBand = { swara: string; freq: number; color: string }
 function buildTargetBands(): TargetBand[] {
   const bands: TargetBand[] = []
   for (const [swara, base] of Object.entries(BASE_TARGETS)) {
-    for (const mult of [0.25, 0.5, 1, 2, 4]) {
+    for (const mult of [0.125, 0.25, 0.5, 1, 2, 4, 8]) {
       const f = base * mult
       if (f >= MIN_FREQ && f <= MAX_FREQ) {
         bands.push({ swara, freq: f, color: TARGET_COLORS[swara] })
@@ -67,12 +67,9 @@ function freqAtCents(freq: number, cents: number): number {
 }
 
 function nearestCents(freq: number): number {
-  let min = Infinity
-  for (const t of Object.values(TARGETS)) {
-    const c = Math.abs(1200 * Math.log2(freq / t))
-    if (c < min) min = c
-  }
-  return min
+  // Distance in cents to the nearest chromatic semitone — always in [0, 50]
+  const midi = 69 + 12 * Math.log2(freq / 440)
+  return Math.abs((midi - Math.round(midi)) * 100)
 }
 
 function pitchColor(absCents: number): string {
@@ -139,11 +136,11 @@ export default function PitchGraph({ onMount }: Props) {
       ctx.fillRect(0, 0, W, H)
 
       // ── note grid ──────────────────────────────────────────────────────────
-      // MIDI 45 (A2, 110 Hz) → MIDI 79 (G5, 783 Hz)
+      // MIDI 34 (A#1, 58 Hz) → MIDI 91 (G6, 1568 Hz) — clip by freq range
       ctx.textAlign = 'right'
       ctx.textBaseline = 'middle'
 
-      for (let midi = 45; midi <= 79; midi++) {
+      for (let midi = 34; midi <= 91; midi++) {
         const f = noteFreq(midi)
         if (f < MIN_FREQ || f > MAX_FREQ) continue
 
