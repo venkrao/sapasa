@@ -5,7 +5,7 @@ import PitchGraph from './PitchGraph'
 const WS_URL = 'ws://localhost:8765/ws'
 const RECONNECT_DELAY_MS = 2000
 
-type NoteEvent = { status: 'note'; note: string; cents: number; freq: number }
+type NoteEvent = { status: 'note'; note: string; swara: string; cents: number; freq: number }
 type IdleEvent  = { status: 'idle' }
 type PitchEvent = NoteEvent | IdleEvent
 
@@ -102,7 +102,10 @@ export default function App() {
             className="note-current"
             style={{ '--note-color': centsColor(note.cents) } as React.CSSProperties}
           >
-            <span className="note-swara">{note.note}</span>
+            <div className="note-identity">
+              <span className="note-swara">{note.swara}</span>
+              <span className="note-western">{note.note}</span>
+            </div>
             <span className="note-cents">{formatCents(note.cents)}</span>
             <span className="note-label">{centsLabel(note.cents)}</span>
           </div>

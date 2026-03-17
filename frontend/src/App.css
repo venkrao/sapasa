@@ -56,17 +56,33 @@
 
 .note-current {
   display: flex;
-  align-items: baseline;
-  gap: 16px;
+  align-items: center;
+  gap: 20px;
+}
+
+/* swara name + Western note stacked vertically */
+.note-identity {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
 }
 
 .note-swara {
-  font-size: 2.2rem;
+  font-size: 2rem;
   font-weight: 700;
   color: var(--note-color);
   line-height: 1;
   letter-spacing: -0.02em;
   transition: color 120ms ease;
+}
+
+.note-western {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #505050;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
 }
 
 .note-cents {
@@ -78,7 +94,7 @@
 }
 
 .note-label {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: #404040;
   letter-spacing: 0.06em;
   text-transform: uppercase;

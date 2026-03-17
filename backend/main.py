@@ -12,6 +12,8 @@ import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
+from carnatic_engine import FREQ_MAP, nearest_swara
+
 SAMPLE_RATE = 44100
 BLOCK_SIZE = 512       # ~11 ms per audio callback
 WINDOW_SIZE = 2048     # YIN analysis window (~46 ms)
@@ -23,7 +25,7 @@ MIN_FREQ = 80.0        # ~E2 — covers most vocal ranges
 MAX_FREQ = 1200.0      # ~D6
 EMA_ALPHA = 0.15       # exponential smoothing — lower = smoother but more lag
 
-NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+_NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -125,18 +127,12 @@ def _yin_pitch(
 
 # ── Music logic ───────────────────────────────────────────────────────────────
 
-def _nearest_note(freq: float) -> tuple[str, float]:
-    """Return (note_name, cents_deviation) for the nearest chromatic pitch.
-
-    cents_deviation is positive when sung sharp, negative when flat.
-    Always in the range (−50, +50].
-    """
+def _nearest_note(freq: float) -> str:
+    """Return the Western note name (e.g. 'D#3') for the nearest ET semitone."""
     midi_f = 69.0 + 12.0 * math.log2(freq / 440.0)
     midi   = round(midi_f)
-    cents  = (midi_f - midi) * 100.0
     octave = midi // 12 - 1
-    name   = NOTE_NAMES[midi % 12] + str(octave)
-    return name, round(cents, 1)
+    return _NOTE_NAMES[midi % 12] + str(octave)
 
 
 # ── Audio processing thread ───────────────────────────────────────────────────
@@ -172,11 +168,13 @@ def _process_audio() -> None:
                     _ema_freq = freq
                 else:
                     _ema_freq = EMA_ALPHA * freq + (1.0 - EMA_ALPHA) * _ema_freq
-                note, cents = _nearest_note(_ema_freq)
+                note               = _nearest_note(_ema_freq)
+                _, swara, cents_ji = nearest_swara(_ema_freq, FREQ_MAP)
                 event = {
                     "status": "note",
-                    "note":   note,
-                    "cents":  cents,
+                    "note":   note,       # nearest Western ET semitone, e.g. "D#3"
+                    "swara":  swara,      # nearest Carnatic swarasthana, e.g. "Sa"
+                    "cents":  cents_ji,   # deviation from JI target
                     "freq":   round(_ema_freq, 1),
                 }
             else:
