@@ -1,24 +1,29 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { SA_HZ, buildSwaraBands, nearestSwaraCents, type SwaraBand } from './swaras'
 
-// ── layout constants ──────────────────────────────────────────────────────────
+// ── grid & viewport constants ─────────────────────────────────────────────────
 
-const WINDOW_MS  = 15_000
-const MIN_FREQ   = 75     // ~D#2 — well below any vocal range
-const MAX_FREQ   = 1250   // ~D#6 — well above any vocal range
+const GRID_MIN_HZ = 82.41    // E2 — below lowest practical vocal Sa
+const GRID_MAX_HZ = 2093.00  // C7 — above highest soprano note
 
-// Y-axis is split into two columns:
-//   [0 .. SWARA_COL_X]   swara names (right-aligned)
-//   [SWARA_COL_X .. LABEL_W]  Western note names (right-aligned)
-//   [LABEL_W]            vertical divider
-const SWARA_COL_X = 36
-const LABEL_W     = 76
+const OCTAVE_SPAN = 3        // octaves visible at once
+const HALF_SPAN   = OCTAVE_SPAN / 2
 
-// ── pre-built band list ───────────────────────────────────────────────────────
+const WINDOW_MS      = 60_000  // trace history length
+const MEDIAN_WIN_MS  = 2_000   // window for scroll target median
+const SCROLL_EMA     = 0.08    // viewport smoothing (per-frame at 60fps)
+const JUMP_GUARD     = 300     // cents — viewport ignores larger jumps
 
-const SWARA_BANDS: SwaraBand[] = buildSwaraBands(SA_HZ, MIN_FREQ, MAX_FREQ)
+// ── layout ────────────────────────────────────────────────────────────────────
 
-const PROMINENT = new Set(["Sa", "Pa", "Sa'"])
+const LABEL_W = 46  // left axis: swara names
+const LABEL_R = 48  // right axis: Western note names
+
+// ── pre-built full-range swara band list ─────────────────────────────────────
+
+const SWARA_BANDS: SwaraBand[] = buildSwaraBands(SA_HZ, GRID_MIN_HZ, GRID_MAX_HZ)
+
+const PROMINENT = new Set(['Sa', 'Pa', "Sa'"])
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -32,9 +37,9 @@ function noteName(midi: number): string {
   return NOTE_NAMES[midi % 12] + (Math.floor(midi / 12) - 1)
 }
 
-function freqToY(freq: number, h: number): number {
-  const lo = Math.log2(MIN_FREQ)
-  const hi = Math.log2(MAX_FREQ)
+function freqToY(freq: number, h: number, viewMin: number, viewMax: number): number {
+  const lo = Math.log2(viewMin)
+  const hi = Math.log2(viewMax)
   return h * (1 - (Math.log2(freq) - lo) / (hi - lo))
 }
 
@@ -42,10 +47,15 @@ function freqAtCents(freq: number, cents: number): number {
   return freq * Math.pow(2, cents / 1200)
 }
 
+function centsToHz(f: number, other: number): number {
+  return Math.abs(1200 * Math.log2(f / other))
+}
+
 function pitchColor(absCents: number): string {
   if (absCents <= 10) return '#4ade80'
   if (absCents <= 25) return '#fbbf24'
-  return '#f87171'
+  if (absCents <= 50) return '#f87171'
+  return '#2e2e2e'  // between swarasthanas
 }
 
 // ── component ─────────────────────────────────────────────────────────────────
@@ -57,14 +67,21 @@ interface Props {
 }
 
 export default function PitchGraph({ onMount }: Props) {
-  const canvasRef  = useRef<HTMLCanvasElement>(null)
-  const historyRef = useRef<Point[]>([])
-  const rafRef     = useRef<number>(0)
+  const canvasRef           = useRef<HTMLCanvasElement>(null)
+  const historyRef          = useRef<Point[]>([])
+  const displayCentreRef    = useRef<number>(SA_HZ)   // initialised to Sa
+  const rafRef              = useRef<number>(0)
+
+  // drag-to-scroll state
+  const isDraggingRef       = useRef(false)
+  const dragLastYRef        = useRef(0)
+  const autoScrollPaused    = useRef(false)
+  const resumeTimerRef      = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const push = useCallback((freq: number | null) => {
     const now = Date.now()
     historyRef.current.push({ t: now, freq })
-    const cutoff = now - WINDOW_MS - 500
+    const cutoff = now - WINDOW_MS - 1000
     while (historyRef.current.length > 1 && historyRef.current[0].t < cutoff)
       historyRef.current.shift()
   }, [])
@@ -78,6 +95,7 @@ export default function PitchGraph({ onMount }: Props) {
     let W = 0, H = 0, dpr = 1
 
     function resize() {
+      if (!canvas) return
       dpr = window.devicePixelRatio || 1
       W   = canvas.offsetWidth
       H   = canvas.offsetHeight
@@ -88,90 +106,160 @@ export default function PitchGraph({ onMount }: Props) {
     ro.observe(canvas)
     resize()
 
+    // ── drag-to-scroll ────────────────────────────────────────────────────────
+    function onPointerDown(e: PointerEvent) {
+      canvas?.setPointerCapture(e.pointerId)
+      isDraggingRef.current = true
+      dragLastYRef.current  = e.clientY
+      autoScrollPaused.current = true
+      if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
+    }
+
+    function onPointerMove(e: PointerEvent) {
+      if (!isDraggingRef.current) return
+      const dy = e.clientY - dragLastYRef.current
+      dragLastYRef.current = e.clientY
+      // dragging down → lower frequencies (negate delta)
+      const deltaOctaves = -dy * (OCTAVE_SPAN / H)
+      displayCentreRef.current = Math.max(
+        GRID_MIN_HZ * Math.pow(2, HALF_SPAN),
+        Math.min(
+          GRID_MAX_HZ / Math.pow(2, HALF_SPAN),
+          displayCentreRef.current * Math.pow(2, deltaOctaves),
+        ),
+      )
+    }
+
+    function onPointerUp() {
+      if (!isDraggingRef.current) return
+      isDraggingRef.current = false
+      // resume auto-scroll after 3 s of inactivity
+      resumeTimerRef.current = setTimeout(() => {
+        autoScrollPaused.current = false
+      }, 3000)
+    }
+
+    canvas.addEventListener('pointerdown', onPointerDown)
+    canvas.addEventListener('pointermove', onPointerMove)
+    canvas.addEventListener('pointerup',   onPointerUp)
+    canvas.addEventListener('pointerleave', onPointerUp)
+
     function draw() {
       ctx.resetTransform()
       ctx.scale(dpr, dpr)
 
       const now   = Date.now()
-      const plotW = W - LABEL_W
+      const plotW = W - LABEL_W - LABEL_R
 
-      // background
+      // ── 1. Update display centre (skipped while user is dragging) ────────
+      if (!autoScrollPaused.current) {
+        const recentFreqs = historyRef.current
+          .filter(p => p.freq !== null && now - p.t <= MEDIAN_WIN_MS)
+          .map(p => p.freq as number)
+          .sort((a, b) => a - b)
+
+        if (recentFreqs.length > 0) {
+          const median = recentFreqs[Math.floor(recentFreqs.length / 2)]
+          const jump   = centsToHz(median, displayCentreRef.current)
+          if (jump <= JUMP_GUARD) {
+            displayCentreRef.current +=
+              SCROLL_EMA * (median - displayCentreRef.current)
+          }
+          // jump > guard → hold position this frame
+        }
+        // silence → hold position (no update)
+      }
+
+      // ── 2. Viewport bounds ────────────────────────────────────────────────
+      const centre  = displayCentreRef.current
+      const viewMin = Math.max(GRID_MIN_HZ, centre / Math.pow(2, HALF_SPAN))
+      const viewMax = Math.min(GRID_MAX_HZ, centre * Math.pow(2, HALF_SPAN))
+
+      // Shorthand for freq → Y using current viewport
+      const fToY = (f: number) => freqToY(f, H, viewMin, viewMax)
+
+      // ── 3. Background ─────────────────────────────────────────────────────
       ctx.fillStyle = '#0a0a0a'
       ctx.fillRect(0, 0, W, H)
 
-      // ── Western chromatic grid ────────────────────────────────────────────
+      // ── 4. Western chromatic grid + right labels ──────────────────────────
       ctx.textBaseline = 'middle'
+      ctx.textAlign    = 'left'
 
-      for (let midi = 34; midi <= 91; midi++) {
+      for (let midi = 40; midi <= 96; midi++) {
         const f = noteFreq(midi)
-        if (f < MIN_FREQ || f > MAX_FREQ) continue
-        const y    = freqToY(f, H)
+        if (f < viewMin || f > viewMax) continue
+
+        const y    = fToY(f)
         const name = noteName(midi)
         const isSharp = name.includes('#')
         const isC     = name.startsWith('C') && !isSharp
 
         ctx.strokeStyle = isC ? '#242424' : isSharp ? '#111' : '#181818'
         ctx.lineWidth   = isC ? 1 : 0.5
-        ctx.beginPath(); ctx.moveTo(LABEL_W, y); ctx.lineTo(W, y); ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(LABEL_W, y)
+        ctx.lineTo(W - LABEL_R, y)
+        ctx.stroke()
 
         if (!isSharp) {
           ctx.font      = isC ? '500 11px system-ui,sans-serif' : '400 10px system-ui,sans-serif'
           ctx.fillStyle = isC ? '#606060' : '#484848'
-          ctx.textAlign = 'right'
-          ctx.fillText(name, LABEL_W - 6, y)
+          ctx.fillText(name, W - LABEL_R + 6, y)
         }
       }
 
-      // ── Swara bands at JI positions ───────────────────────────────────────
-      // Sort descending by freq so we can do a Y-proximity check for labels
-      const sorted = [...SWARA_BANDS].sort((a, b) => b.freq - a.freq)
-      let lastSwaraLabelY = -Infinity
+      // ── 5. Swara bands + left labels ──────────────────────────────────────
+      const visibleBands = SWARA_BANDS
+        .filter(b => b.freq >= viewMin && b.freq <= viewMax)
+        .sort((a, b) => b.freq - a.freq)
 
-      for (const band of sorted) {
-        const y   = freqToY(band.freq, H)
+      let lastLabelY = -Infinity
+
+      for (const band of visibleBands) {
+        const y   = fToY(band.freq)
         const col = band.color
         const big = PROMINENT.has(band.swara)
 
-        // ±25¢ outer fill (prominent swaras only)
+        // ±25¢ outer fill (prominent only)
         if (big) {
-          const yHi = freqToY(freqAtCents(band.freq, +25), H)
-          const yLo = freqToY(freqAtCents(band.freq, -25), H)
+          const yHi = fToY(freqAtCents(band.freq, +25))
+          const yLo = fToY(freqAtCents(band.freq, -25))
           ctx.fillStyle = col + '10'
           ctx.fillRect(LABEL_W, yHi, plotW, yLo - yHi)
         }
 
         // ±10¢ inner fill
-        const y10Hi = freqToY(freqAtCents(band.freq, +10), H)
-        const y10Lo = freqToY(freqAtCents(band.freq, -10), H)
+        const y10Hi = fToY(freqAtCents(band.freq, +10))
+        const y10Lo = fToY(freqAtCents(band.freq, -10))
         ctx.fillStyle = col + (big ? '22' : '14')
         ctx.fillRect(LABEL_W, y10Hi, plotW, y10Lo - y10Hi)
 
         // centre line
         ctx.strokeStyle = col + (big ? '55' : '28')
         ctx.lineWidth   = big ? 1 : 0.5
-        ctx.beginPath(); ctx.moveTo(LABEL_W, y); ctx.lineTo(W, y); ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(LABEL_W, y)
+        ctx.lineTo(W - LABEL_R, y)
+        ctx.stroke()
 
-        // swara label (left column, skip if too close to the previous label)
-        if (y - lastSwaraLabelY >= 9) {
+        // left swara label (skip if too close to previous)
+        if (y - lastLabelY >= 9) {
           ctx.font      = big ? '600 10px system-ui,sans-serif' : '400 9px system-ui,sans-serif'
           ctx.fillStyle = col + (big ? 'cc' : '88')
           ctx.textAlign = 'right'
-          ctx.fillText(band.label, SWARA_COL_X, y)
-          lastSwaraLabelY = y
+          ctx.fillText(band.label, LABEL_W - 4, y)
+          lastLabelY = y
         }
       }
 
-      // ── Y-axis divider ────────────────────────────────────────────────────
+      // ── 6. Axis dividers ──────────────────────────────────────────────────
       ctx.strokeStyle = '#1f1f1f'
       ctx.lineWidth   = 1
-      ctx.beginPath(); ctx.moveTo(LABEL_W, 0); ctx.lineTo(LABEL_W, H); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(LABEL_W,       0); ctx.lineTo(LABEL_W,       H); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(W - LABEL_R,   0); ctx.lineTo(W - LABEL_R,   H); ctx.stroke()
 
-      // subtle column separator between swara / Western label zones
-      ctx.strokeStyle = '#151515'
-      ctx.lineWidth   = 0.5
-      ctx.beginPath(); ctx.moveTo(SWARA_COL_X + 4, 0); ctx.lineTo(SWARA_COL_X + 4, H); ctx.stroke()
-
-      // ── pitch trace ───────────────────────────────────────────────────────
+      // ── 7. Pitch trace ────────────────────────────────────────────────────
       const pts = historyRef.current
       ctx.lineWidth = 2
       ctx.lineJoin  = 'round'
@@ -189,7 +277,7 @@ export default function PitchGraph({ onMount }: Props) {
           continue
         }
 
-        const y   = freqToY(p.freq, H)
+        const y   = fToY(p.freq)
         const col = pitchColor(nearestSwaraCents(p.freq, SWARA_BANDS))
 
         if (!inSeg || col !== segColor) {
@@ -209,13 +297,21 @@ export default function PitchGraph({ onMount }: Props) {
     }
 
     rafRef.current = requestAnimationFrame(draw)
-    return () => { cancelAnimationFrame(rafRef.current); ro.disconnect() }
+    return () => {
+      cancelAnimationFrame(rafRef.current)
+      ro.disconnect()
+      if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current)
+      canvas.removeEventListener('pointerdown',  onPointerDown)
+      canvas.removeEventListener('pointermove',  onPointerMove)
+      canvas.removeEventListener('pointerup',    onPointerUp)
+      canvas.removeEventListener('pointerleave', onPointerUp)
+    }
   }, [])
 
   return (
     <canvas
       ref={canvasRef}
-      style={{ width: '100%', height: '100%', display: 'block' }}
+      style={{ width: '100%', height: '100%', display: 'block', cursor: 'ns-resize' }}
     />
   )
 }
