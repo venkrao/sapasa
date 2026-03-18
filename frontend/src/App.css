@@ -27,6 +27,28 @@
   color: #525252;
 }
 
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.listen-button {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #bdbdbd;
+  background: #111;
+  border: 1px solid #222;
+  border-radius: 6px;
+  padding: 3px 10px;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+}
+
+.listen-button:hover { border-color: #333; }
+.listen-button.on    { color: #d4d4d4; }
+.listen-button.off   { color: #6b7280; }
+
 .shruti-select {
   font-size: 0.8rem;
   font-weight: 500;

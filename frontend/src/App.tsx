@@ -31,12 +31,14 @@ export default function App() {
   const [event, setEvent]         = useState<PitchEvent>({ status: 'idle' })
   const [connected, setConnected] = useState(false)
   const [saHz, setSaHz]           = useState(SA_HZ)
+  const [listening, setListening] = useState(true)
 
   const wsRef          = useRef<WebSocket | null>(null)
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastDisplayed  = useRef<number>(0)
   const graphPushRef   = useRef<((freq: number | null) => void) | null>(null)
   const saHzRef        = useRef(SA_HZ)   // stable ref for use inside WS closures
+  const listeningRef   = useRef(true)
 
   const onGraphMount = useCallback((push: (freq: number | null) => void) => {
     graphPushRef.current = push
@@ -55,6 +57,7 @@ export default function App() {
 
   useEffect(() => {
     function connect() {
+      if (!listeningRef.current) return
       const ws = new WebSocket(WS_URL)
       wsRef.current = ws
 
@@ -86,26 +89,50 @@ export default function App() {
       ws.onclose = () => {
         setConnected(false)
         setEvent({ status: 'idle' })
-        reconnectTimer.current = setTimeout(connect, RECONNECT_DELAY_MS)
+        if (listeningRef.current)
+          reconnectTimer.current = setTimeout(connect, RECONNECT_DELAY_MS)
       }
 
       ws.onerror = () => ws.close()
     }
 
-    connect()
+    if (listening) connect()
+    else {
+      wsRef.current?.close()
+      wsRef.current = null
+      setConnected(false)
+      setEvent({ status: 'idle' })
+      graphPushRef.current?.(null)
+      if (reconnectTimer.current) clearTimeout(reconnectTimer.current)
+    }
 
     return () => {
       wsRef.current?.close()
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current)
     }
-  }, [])
+  }, [listening])
+
+  function toggleListening() {
+    listeningRef.current = !listeningRef.current
+    setListening(listeningRef.current)
+  }
 
   const note = event.status === 'note' ? (event as NoteEvent) : null
+  const idleText = !listening ? 'paused' : (connected ? 'listening…' : 'connecting…')
 
   return (
     <div className="app">
       <header className="header">
         <span className="app-name">SaPaSa</span>
+        <div className="header-controls">
+          <button
+            className={'listen-button ' + (listening ? 'on' : 'off')}
+            onClick={toggleListening}
+            type="button"
+            title={listening ? 'Stop listening' : 'Start listening'}
+          >
+            {listening ? 'Pause' : 'Listen'}
+          </button>
         <select
           className="shruti-select"
           value={saHz}
@@ -117,6 +144,7 @@ export default function App() {
             </option>
           ))}
         </select>
+        </div>
       </header>
 
       <div className="graph-container">
@@ -140,7 +168,7 @@ export default function App() {
           <div className="note-idle">
             <div className="idle-dot" />
             <span className="idle-text">
-              {connected ? 'listening…' : 'connecting…'}
+              {idleText}
             </span>
           </div>
         )}
