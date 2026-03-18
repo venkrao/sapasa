@@ -67,6 +67,7 @@ export default function App() {
       }
 
       ws.onmessage = (e: MessageEvent) => {
+        if (!listeningRef.current) return
         try {
           const incoming = JSON.parse(e.data) as PitchEvent
 
@@ -148,7 +149,7 @@ export default function App() {
       </header>
 
       <div className="graph-container">
-        <PitchGraph saHz={saHz} onMount={onGraphMount} />
+        <PitchGraph saHz={saHz} paused={!listening} onMount={onGraphMount} />
       </div>
 
       <div className="note-panel">
