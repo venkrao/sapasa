@@ -1,10 +1,10 @@
 # SaPaSa
 
-A Carnatic pitch training tool for macOS. Listens to your voice and shows live cents deviation against Just Intonation (JI) swarasthanas for the selected shruti.
+A Carnatic pitch training tool for desktop (macOS / Windows / Linux). Listens to your voice and shows live cents deviation against Just Intonation (JI) swarasthanas for the selected shruti.
 
 ## Requirements
 
-- Python 3.10+ (Apple Silicon native recommended)
+- Python 3.10+
 - Node.js 18+
 
 ## Setup
@@ -44,7 +44,11 @@ npm run dev
 
 Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-macOS will prompt for microphone access the first time the Python server starts.
+The Python backend uses your system microphone:
+
+- **macOS**: you may be prompted for microphone access the first time you start `python main.py`.
+- **Windows**: ensure microphone permission is enabled for desktop apps in Windows Privacy settings.
+- **Linux**: ensure your audio stack (PipeWire/PulseAudio/ALSA) has an input device available.
 
 ## Currently supported
 
