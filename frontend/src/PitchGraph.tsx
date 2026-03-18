@@ -60,10 +60,11 @@ type Point = { t: number; freq: number | null }
 
 interface Props {
   saHz:    number
+  paused:  boolean
   onMount: (push: (freq: number | null) => void) => void
 }
 
-export default function PitchGraph({ saHz, onMount }: Props) {
+export default function PitchGraph({ saHz, paused, onMount }: Props) {
   const canvasRef           = useRef<HTMLCanvasElement>(null)
   const historyRef          = useRef<Point[]>([])
   const displayCentreRef    = useRef<number>(saHz)    // initialised to Sa
@@ -75,6 +76,15 @@ export default function PitchGraph({ saHz, onMount }: Props) {
     swaraBandsRef.current      = buildSwaraBands(saHz, GRID_MIN_HZ, GRID_MAX_HZ)
     displayCentreRef.current   = saHz   // jump viewport to new Sa on shruti change
   }, [saHz])
+
+  // pause support: freeze the graph timebase and stop viewport tracking
+  const pausedRef     = useRef(paused)
+  const frozenNowRef  = useRef<number | null>(null)
+  useEffect(() => {
+    pausedRef.current = paused
+    if (paused) frozenNowRef.current = Date.now()
+    else frozenNowRef.current = null
+  }, [paused])
 
   // drag-to-scroll state
   const isDraggingRef       = useRef(false)
@@ -152,11 +162,11 @@ export default function PitchGraph({ saHz, onMount }: Props) {
       ctx.resetTransform()
       ctx.scale(dpr, dpr)
 
-      const now   = Date.now()
+      const now   = pausedRef.current ? (frozenNowRef.current ?? Date.now()) : Date.now()
       const plotW = W - LABEL_W - LABEL_R
 
       // ── 1. Update display centre (skipped while user is dragging) ────────
-      if (!autoScrollPaused.current) {
+      if (!pausedRef.current && !autoScrollPaused.current) {
         const recentFreqs = historyRef.current
           .filter(p => p.freq !== null && now - p.t <= MEDIAN_WIN_MS)
           .map(p => p.freq as number)
