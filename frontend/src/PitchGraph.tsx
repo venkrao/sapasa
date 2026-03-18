@@ -61,10 +61,12 @@ type Point = { t: number; freq: number | null }
 interface Props {
   saHz:    number
   paused:  boolean
+  allowedSwaras?: string[] | null
+  expectedSwara?: string | null
   onMount: (push: (freq: number | null) => void) => void
 }
 
-export default function PitchGraph({ saHz, paused, onMount }: Props) {
+export default function PitchGraph({ saHz, paused, allowedSwaras, expectedSwara, onMount }: Props) {
   const canvasRef           = useRef<HTMLCanvasElement>(null)
   const historyRef          = useRef<Point[]>([])
   const displayCentreRef    = useRef<number>(saHz)    // initialised to Sa
@@ -85,6 +87,16 @@ export default function PitchGraph({ saHz, paused, onMount }: Props) {
     if (paused) frozenNowRef.current = Date.now()
     else frozenNowRef.current = null
   }, [paused])
+
+  // Exercise-aware emphasis/dimming (optional)
+  const allowedSetRef    = useRef<Set<string> | null>(null)
+  const expectedSwaraRef = useRef<string | null>(expectedSwara ?? null)
+  useEffect(() => {
+    allowedSetRef.current = allowedSwaras ? new Set(allowedSwaras) : null
+  }, [allowedSwaras])
+  useEffect(() => {
+    expectedSwaraRef.current = expectedSwara ?? null
+  }, [expectedSwara])
 
   // drag-to-scroll state
   const isDraggingRef       = useRef(false)
@@ -133,8 +145,8 @@ export default function PitchGraph({ saHz, paused, onMount }: Props) {
       if (!isDraggingRef.current) return
       const dy = e.clientY - dragLastYRef.current
       dragLastYRef.current = e.clientY
-      // dragging down → lower frequencies (negate delta)
-      const deltaOctaves = -dy * (OCTAVE_SPAN / H)
+      // Reversed: dragging down should increase the viewport centre (opposite panning).
+      const deltaOctaves = dy * (OCTAVE_SPAN / H)
       displayCentreRef.current = Math.max(
         GRID_MIN_HZ * Math.pow(2, HALF_SPAN),
         Math.min(
@@ -198,7 +210,9 @@ export default function PitchGraph({ saHz, paused, onMount }: Props) {
 
       // ── 4. Western chromatic grid + right labels ──────────────────────────
       ctx.textBaseline = 'middle'
-      ctx.textAlign    = 'left'
+      // We'll render Western note labels on the LEFT axis, so right-align text
+      // near the divider at `LABEL_W`.
+      ctx.textAlign    = 'right'
 
       for (let midi = 40; midi <= 96; midi++) {
         const f = noteFreq(midi)
@@ -219,7 +233,8 @@ export default function PitchGraph({ saHz, paused, onMount }: Props) {
         if (!isSharp) {
           ctx.font      = isC ? '500 11px system-ui,sans-serif' : '400 10px system-ui,sans-serif'
           ctx.fillStyle = isC ? '#606060' : '#484848'
-          ctx.fillText(name, W - LABEL_R + 6, y)
+          // Left side: keep text inside the left reserved label column.
+          ctx.fillText(name, LABEL_W - 6, y)
         }
       }
 
@@ -233,7 +248,13 @@ export default function PitchGraph({ saHz, paused, onMount }: Props) {
       for (const band of visibleBands) {
         const y   = fToY(band.freq)
         const col = band.color
-        const big = PROMINENT.has(band.swara)
+        const allowedSet = allowedSetRef.current
+        const isAllowed  = allowedSet ? allowedSet.has(band.swara) : true
+        const isExpected = expectedSwaraRef.current
+          ? band.swara === expectedSwaraRef.current
+          : false
+        const dim = allowedSet ? !isAllowed : false
+        const big = isExpected || (!dim && PROMINENT.has(band.swara))
 
         // ±25¢ outer fill (prominent only)
         if (big) {
@@ -246,11 +267,11 @@ export default function PitchGraph({ saHz, paused, onMount }: Props) {
         // ±10¢ inner fill
         const y10Hi = fToY(freqAtCents(band.freq, +10))
         const y10Lo = fToY(freqAtCents(band.freq, -10))
-        ctx.fillStyle = col + (big ? '22' : '14')
+        ctx.fillStyle = col + (dim ? '0c' : (big ? '22' : '14'))
         ctx.fillRect(LABEL_W, y10Hi, plotW, y10Lo - y10Hi)
 
         // centre line
-        ctx.strokeStyle = col + (big ? '55' : '28')
+        ctx.strokeStyle = col + (dim ? '18' : (big ? '55' : '28'))
         ctx.lineWidth   = big ? 1 : 0.5
         ctx.beginPath()
         ctx.moveTo(LABEL_W, y)
@@ -260,9 +281,10 @@ export default function PitchGraph({ saHz, paused, onMount }: Props) {
         // left swara label (skip if too close to previous)
         if (y - lastLabelY >= 9) {
           ctx.font      = big ? '600 10px system-ui,sans-serif' : '400 9px system-ui,sans-serif'
-          ctx.fillStyle = col + (big ? 'cc' : '88')
-          ctx.textAlign = 'right'
-          ctx.fillText(band.label, LABEL_W - 4, y)
+          ctx.fillStyle = col + (dim ? '55' : (big ? 'cc' : '88'))
+          // Right side: Carnatic swara labels should appear on the right axis.
+          ctx.textAlign = 'left'
+          ctx.fillText(band.label, W - LABEL_R + 6, y)
           lastLabelY = y
         }
       }

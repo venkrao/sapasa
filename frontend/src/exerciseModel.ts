@@ -1,0 +1,41 @@
+export type SequenceStep = {
+  swara: string  // swara key, e.g. 'Sa', 'R1', 'Pa'
+  octave: number // octave relative to Sa (0 = madhya, 1 = tara, -1 = mandra)
+}
+
+export type ExerciseGroup = {
+  // Atomic rendering unit ("gesture"). E.g. Sarali groupSize=1, Janta groupSize=2,
+  // Alankara groupSize=3.
+  steps: SequenceStep[]
+  // If true, renderer draws a visible bar separator after this group.
+  beatBoundary?: boolean
+}
+
+export type ExercisePhrase = {
+  // Usually "ascending" / "descending". For non-arc exercises, this can be custom.
+  label: string
+  // Ordered left-to-right (within the phrase/row), top-to-bottom across phrases.
+  groups: ExerciseGroup[]
+}
+
+export type ExerciseDefinition = {
+  id: string
+  label: string
+  phrases: ExercisePhrase[]
+  // Derived at load time by flattening phrases -> groups -> steps.
+  // The matcher reads this timeline; the renderer reads `phrases` only.
+  flatSequence: SequenceStep[]
+  allowedSwaras: string[] // graph band keys (e.g. "Sa'") for dimming during exercise
+}
+
+export type RagaDefinition = {
+  id: string
+  label: string
+  talaLabel: string
+  exercises: ExerciseDefinition[]
+}
+
+export function deriveFlatSequence(phrases: ExercisePhrase[]): SequenceStep[] {
+  return phrases.flatMap(phrase => phrase.groups.flatMap(group => group.steps))
+}
+

@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import './App.css'
 import PitchGraph from './PitchGraph'
-import { SA_HZ, SHRUTI_LIST } from './swaras'
+import { SA_HZ, SHRUTI_LIST, swaraHz } from './swaras'
+import ExercisePanel from './ExercisePanel'
+import { RAGAS, getExercise } from './exerciseCatalog'
+import type { RagaDefinition, SequenceStep } from './exerciseModel'
 
 const WS_URL = 'ws://localhost:8765/ws'
 const RECONNECT_DELAY_MS = 2000
@@ -32,6 +35,46 @@ export default function App() {
   const [connected, setConnected] = useState(false)
   const [saHz, setSaHz]           = useState(SA_HZ)
   const [listening, setListening] = useState(true)
+
+  // Sidebar resizer (draggable divider between graph and ExercisePanel).
+  const [sidebarWidth, setSidebarWidth] = useState(360)
+  const resizingRef = useRef(false)
+  const resizeStartXRef = useRef(0)
+  const resizeStartWidthRef = useRef(360)
+  const [sidebarDragging, setSidebarDragging] = useState(false)
+
+  // ── Exercise selection (Raga -> Exercise) ───────────────────────────────
+  const ragaOptions = [
+    { id: '', label: 'Select raga…' },
+    ...RAGAS.map(r => ({ id: r.id, label: r.label })),
+  ]
+  const [selectedRagaId, setSelectedRagaId] = useState('')
+
+  const selectedRaga: RagaDefinition | undefined =
+    selectedRagaId ? RAGAS.find(r => r.id === selectedRagaId) : undefined
+  const selectedRagaTalaLabel = selectedRaga?.talaLabel ?? ''
+
+  const exerciseOptions = [
+    { id: '', label: 'Select exercise…' },
+    ...((selectedRaga?.exercises ?? []).map(e => ({ id: e.id, label: e.label }))),
+  ]
+
+  const [selectedExerciseId, setSelectedExerciseId] = useState('')
+
+  const selectedExercise = selectedRagaId && selectedExerciseId
+    ? getExercise(selectedRagaId, selectedExerciseId)
+    : undefined
+  const flatSequence = selectedExercise?.flatSequence ?? []
+  const phrases = selectedExercise?.phrases ?? []
+  const allowedSwaras = selectedExercise?.allowedSwaras ?? null
+
+  const [exerciseActive, setExerciseActive] = useState(false)
+  const [expectedIndex, setExpectedIndex] = useState(0)
+  const exerciseActiveRef = useRef(exerciseActive)
+  const expectedIndexRef  = useRef(expectedIndex)
+  const flatSequenceRef   = useRef<SequenceStep[]>(flatSequence)
+  const stableMatchCountRef = useRef(0)
+  const lastMatchedExpectedRef = useRef<number>(-1) // tracks expectedIndex to reset count on change
 
   const wsRef          = useRef<WebSocket | null>(null)
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -70,6 +113,8 @@ export default function App() {
         if (!listeningRef.current) return
         try {
           const incoming = JSON.parse(e.data) as PitchEvent
+
+          maybeAdvanceExercise(incoming)
 
           // Feed every raw point to the graph, unthrottled
           graphPushRef.current?.(
@@ -120,6 +165,104 @@ export default function App() {
 
   const note = event.status === 'note' ? (event as NoteEvent) : null
   const idleText = !listening ? 'paused' : (connected ? 'listening…' : 'connecting…')
+  // Convert a SequenceStep to the swara band key used by PitchGraph.
+  function stepToGraphKey(step: SequenceStep): string {
+    return step.swara === 'Sa' && step.octave >= 1 ? "Sa'" : step.swara
+  }
+
+  const expectedStep =
+    exerciseActive && expectedIndex >= 0 && expectedIndex < flatSequence.length
+      ? flatSequence[expectedIndex]
+      : null
+
+  const expectedSwara = expectedStep ? stepToGraphKey(expectedStep) : null
+  const totalSteps = flatSequence.length
+
+  const canStart = !!selectedRagaId && !!selectedExerciseId && totalSteps > 0
+
+  useEffect(() => { exerciseActiveRef.current = exerciseActive }, [exerciseActive])
+  useEffect(() => { expectedIndexRef.current = expectedIndex }, [expectedIndex])
+  useEffect(() => { flatSequenceRef.current = flatSequence }, [selectedRagaId, selectedExerciseId])
+
+  function startExercise() {
+    if (flatSequenceRef.current.length === 0) return
+    stableMatchCountRef.current = 0
+    lastMatchedExpectedRef.current = -1
+    expectedIndexRef.current = 0
+    setExpectedIndex(0)
+    setExerciseActive(true)
+  }
+
+  function stopExercise() {
+    setExerciseActive(false)
+    stableMatchCountRef.current = 0
+    lastMatchedExpectedRef.current = -1
+    expectedIndexRef.current = 0
+    setExpectedIndex(0)
+  }
+
+  function maybeAdvanceExercise(incoming: PitchEvent) {
+    if (!exerciseActiveRef.current) return
+    if (incoming.status !== 'note') return
+
+    const seq = flatSequenceRef.current
+    const idx = expectedIndexRef.current
+    if (idx >= seq.length) return
+
+    const step = seq[idx]
+    const f = incoming.freq
+
+    // Check the step's defined octave AND one octave below it.
+    // The -1 octave slot handles YIN sub-harmonic detection errors (the detector
+    // sometimes returns half the true frequency). We never search *above*
+    // step.octave, which is what previously caused upper Sa (oct=1) to satisfy
+    // a search for the final lower Sa (oct=0).
+    const saHzForMatch = saHzRef.current
+    let errCents = Infinity
+    for (const oct of [step.octave - 1, step.octave]) {
+      const targetHz = swaraHz(step.swara, saHzForMatch, oct)
+      if (targetHz <= 0 || f <= 0) continue
+      const e = Math.abs(1200 * Math.log2(f / targetHz))
+      if (e < errCents) errCents = e
+    }
+
+    // ±25¢ keeps adjacent swaras clearly separated (R1 is ~90¢ from Sa).
+    const SETTLE_CENTS = 25
+
+    // ~1000ms of steady hold before advancing (backend sends ~50 events/sec,
+    // so 50 frames ≈ 1000 ms). Prevents transient wobbles from advancing.
+    const SETTLE_FRAMES = 50
+
+    const onTarget = errCents <= SETTLE_CENTS
+
+    if (onTarget) {
+      // Track by index so Sa (oct=0) and Sa (oct=1) are treated distinctly.
+      stableMatchCountRef.current =
+        lastMatchedExpectedRef.current === idx
+          ? stableMatchCountRef.current + 1
+          : 1
+      lastMatchedExpectedRef.current = idx
+
+      if (stableMatchCountRef.current >= SETTLE_FRAMES) {
+        stableMatchCountRef.current = 0
+        lastMatchedExpectedRef.current = -1
+
+        const next = idx + 1
+        if (next >= seq.length) {
+          setExerciseActive(false)
+          setExpectedIndex(seq.length - 1)
+        } else {
+          expectedIndexRef.current = next
+          setExpectedIndex(next)
+        }
+      }
+    } else {
+      // Pitch drifted off target — reset stability counter so the student
+      // must hold it steadily again before advancing.
+      stableMatchCountRef.current = 0
+      lastMatchedExpectedRef.current = -1
+    }
+  }
 
   return (
     <div className="app">
@@ -149,7 +292,84 @@ export default function App() {
       </header>
 
       <div className="graph-container">
-        <PitchGraph saHz={saHz} paused={!listening} onMount={onGraphMount} />
+        <div className="graph-left">
+          <PitchGraph
+            saHz={saHz}
+            paused={!listening}
+            onMount={onGraphMount}
+            allowedSwaras={exerciseActive ? allowedSwaras : null}
+            expectedSwara={exerciseActive ? expectedSwara : null}
+          />
+        </div>
+
+        <div
+          className={'sidebar-divider ' + (sidebarDragging ? 'dragging' : '')}
+          onPointerDown={e => {
+            resizingRef.current = true
+            setSidebarDragging(true)
+            resizeStartXRef.current = e.clientX
+            resizeStartWidthRef.current = sidebarWidth
+            try {
+              // Prevent text selection on drag.
+              document.body.style.userSelect = 'none'
+            } catch {
+              // ignore
+            }
+
+            const onMove = (ev: PointerEvent) => {
+              if (!resizingRef.current) return
+              const dx = ev.clientX - resizeStartXRef.current
+              const minW = 320
+              const maxW = 620
+              // Reversed: dragging the divider LEFT should widen the sidebar.
+              const next = Math.max(minW, Math.min(maxW, resizeStartWidthRef.current - dx))
+              setSidebarWidth(next)
+            }
+
+            const onUp = () => {
+              resizingRef.current = false
+              setSidebarDragging(false)
+              try {
+                document.body.style.userSelect = ''
+              } catch {
+                // ignore
+              }
+              window.removeEventListener('pointermove', onMove)
+              window.removeEventListener('pointerup', onUp)
+            }
+
+            window.addEventListener('pointermove', onMove, { passive: true })
+            window.addEventListener('pointerup', onUp, { passive: true })
+          }}
+        />
+
+        <ExercisePanel
+          expectedIndex={expectedIndex}
+          totalSteps={totalSteps}
+          phrases={phrases}
+          expectedStep={expectedStep}
+          exerciseActive={exerciseActive}
+          canStart={canStart}
+          onStart={startExercise}
+          onStop={stopExercise}
+          selectedRagaId={selectedRagaId}
+          selectedExerciseId={selectedExerciseId}
+          ragaOptions={ragaOptions}
+          exerciseOptions={exerciseOptions}
+          ragaTalaLabel={selectedRagaTalaLabel}
+          panelWidthPx={sidebarWidth}
+          onRagaChange={(id) => {
+            if (id === selectedRagaId) return
+            stopExercise()
+            setSelectedRagaId(id)
+            setSelectedExerciseId('')
+          }}
+          onExerciseChange={(id) => {
+            if (id === selectedExerciseId) return
+            stopExercise()
+            setSelectedExerciseId(id)
+          }}
+        />
       </div>
 
       <div className="note-panel">
