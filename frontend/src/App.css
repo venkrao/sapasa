@@ -35,10 +35,14 @@
   border: 1px solid #222;
   border-radius: 6px;
   padding: 3px 10px;
+  max-width: 60vw;
   letter-spacing: 0.04em;
   cursor: pointer;
   appearance: none;
   outline: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .shruti-select:hover  { border-color: #333; color: #b0b0b0; }

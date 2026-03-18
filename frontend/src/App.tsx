@@ -112,7 +112,9 @@ export default function App() {
           onChange={e => onShrutiChange(Number(e.target.value))}
         >
           {SHRUTI_LIST.map(s => (
-            <option key={s.hz} value={s.hz}>{s.label}</option>
+            <option key={s.hz} value={s.hz}>
+              {s.kattai} ({s.western}) — {s.typicalUser}
+            </option>
           ))}
         </select>
       </header>

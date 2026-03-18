@@ -7,20 +7,27 @@
 
 export const SA_HZ = 311.13 // D# / Eb — default shruti
 
+export type ShrutiOption = {
+  kattai: string
+  western: string
+  hz: number
+  typicalUser: string
+}
+
 /** All 12 chromatic shrutis at standard concert pitch (A4 = 440 Hz). */
-export const SHRUTI_LIST: { label: string; hz: number }[] = [
-  { label: 'C',      hz: 261.63 },
-  { label: 'C♯/D♭',  hz: 277.18 },
-  { label: 'D',      hz: 293.66 },
-  { label: 'D♯/E♭',  hz: 311.13 },
-  { label: 'E',      hz: 329.63 },
-  { label: 'F',      hz: 349.23 },
-  { label: 'F♯/G♭',  hz: 369.99 },
-  { label: 'G',      hz: 392.00 },
-  { label: 'G♯/A♭',  hz: 415.30 },
-  { label: 'A',      hz: 440.00 },
-  { label: 'A♯/B♭',  hz: 466.16 },
-  { label: 'B',      hz: 493.88 },
+export const SHRUTI_LIST: ShrutiOption[] = [
+  { kattai: '1 Kattai',   western: 'C',      hz: 261.63, typicalUser: 'Male (bass/baritone)' },
+  { kattai: '1½ Kattai',  western: 'C♯/D♭',  hz: 277.18, typicalUser: 'Male' },
+  { kattai: '2 Kattai',   western: 'D',      hz: 293.66, typicalUser: 'Male' },
+  { kattai: '2½ Kattai',  western: 'D♯/E♭',  hz: 311.13, typicalUser: 'Male' },
+  { kattai: '3 Kattai',   western: 'E',      hz: 329.63, typicalUser: 'Male / instruments (Veena, Violin)' },
+  { kattai: '4 Kattai',   western: 'F',      hz: 349.23, typicalUser: 'Male (tenor)' },
+  { kattai: '4½ Kattai',  western: 'F♯/G♭',  hz: 369.99, typicalUser: '—' },
+  { kattai: '5 Kattai',   western: 'G',      hz: 392.00, typicalUser: 'Female' },
+  { kattai: '5½ Kattai',  western: 'G♯/A♭',  hz: 415.30, typicalUser: 'Female vocalists (most common)' },
+  { kattai: '6 Kattai',   western: 'A',      hz: 440.00, typicalUser: 'Female' },
+  { kattai: '6½ Kattai',  western: 'A♯/B♭',  hz: 466.16, typicalUser: 'Female' },
+  { kattai: '7 Kattai',   western: 'B',      hz: 493.88, typicalUser: 'Female (soprano)' },
 ]
 
 // 13 unique pitch positions (overlapping pairs stored under the Ri/Dha key)
