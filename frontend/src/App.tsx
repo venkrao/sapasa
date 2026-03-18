@@ -4,10 +4,12 @@ import PitchGraph from './PitchGraph'
 import { SA_HZ, SHRUTI_LIST, swaraHz } from './swaras'
 import ExercisePanel from './ExercisePanel'
 import { RAGAS, getExercise } from './exerciseCatalog'
+import { deriveFlatSequence } from './exerciseModel'
 import type { RagaDefinition, SequenceStep } from './exerciseModel'
 
 const WS_URL = 'ws://localhost:8765/ws'
 const RECONNECT_DELAY_MS = 2000
+const AROHANAM_AVAROHANAM_EXERCISE_ID = '__arohanam_avarohanam__'
 
 type NoteEvent = { status: 'note'; note: string; swara: string; cents: number; freq: number }
 type IdleEvent  = { status: 'idle' }
@@ -56,17 +58,47 @@ export default function App() {
 
   const exerciseOptions = [
     { id: '', label: 'Select exercise…' },
+    ...(selectedRagaId ? [{ id: AROHANAM_AVAROHANAM_EXERCISE_ID, label: 'Arohanam & Avarohanam' }] : []),
     ...((selectedRaga?.exercises ?? []).map(e => ({ id: e.id, label: e.label }))),
   ]
 
   const [selectedExerciseId, setSelectedExerciseId] = useState('')
 
-  const selectedExercise = selectedRagaId && selectedExerciseId
-    ? getExercise(selectedRagaId, selectedExerciseId)
-    : undefined
-  const flatSequence = selectedExercise?.flatSequence ?? []
-  const phrases = selectedExercise?.phrases ?? []
-  const allowedSwaras = selectedExercise?.allowedSwaras ?? null
+  const isAroAvaroExercise = selectedExerciseId === AROHANAM_AVAROHANAM_EXERCISE_ID
+
+  const selectedExercise =
+    !isAroAvaroExercise && selectedRagaId && selectedExerciseId
+      ? getExercise(selectedRagaId, selectedExerciseId)
+      : undefined
+
+  // Spec-driven "Arohanam & Avarohanam" generated from the selected raga.
+  const aroAvaroPhrases = selectedRaga
+    ? [
+      {
+        label: 'ascending',
+        groups: selectedRaga.arohanam.map(step => ({ steps: [step] })),
+      },
+      {
+        label: 'descending',
+        groups: selectedRaga.avarohanam.map(step => ({ steps: [step] })),
+      },
+    ]
+    : []
+
+  const aroAvaroFlatSequence = deriveFlatSequence(aroAvaroPhrases)
+
+  // Convert a SequenceStep to the swara band key used by PitchGraph.
+  function stepToGraphKey(step: SequenceStep): string {
+    return step.swara === 'Sa' && step.octave >= 1 ? "Sa'" : step.swara
+  }
+
+  const aroAvaroAllowedSwaras = Array.from(
+    new Set(aroAvaroFlatSequence.map(stepToGraphKey)),
+  )
+
+  const flatSequence = isAroAvaroExercise ? aroAvaroFlatSequence : selectedExercise?.flatSequence ?? []
+  const phrases = isAroAvaroExercise ? aroAvaroPhrases : selectedExercise?.phrases ?? []
+  const allowedSwaras = isAroAvaroExercise ? aroAvaroAllowedSwaras : selectedExercise?.allowedSwaras ?? null
 
   const [exerciseActive, setExerciseActive] = useState(false)
   const [expectedIndex, setExpectedIndex] = useState(0)
@@ -75,6 +107,10 @@ export default function App() {
   const flatSequenceRef   = useRef<SequenceStep[]>(flatSequence)
   const stableMatchCountRef = useRef(0)
   const lastMatchedExpectedRef = useRef<number>(-1) // tracks expectedIndex to reset count on change
+
+  // Note: We intentionally do NOT apply any pitch-graph zoom/custom viewport
+  // for arohanam/avarohanam right now. The normal auto-scrolling viewport keeps
+  // the UI responsive and avoids axis/grid artifacts.
 
   const wsRef          = useRef<WebSocket | null>(null)
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -165,10 +201,6 @@ export default function App() {
 
   const note = event.status === 'note' ? (event as NoteEvent) : null
   const idleText = !listening ? 'paused' : (connected ? 'listening…' : 'connecting…')
-  // Convert a SequenceStep to the swara band key used by PitchGraph.
-  function stepToGraphKey(step: SequenceStep): string {
-    return step.swara === 'Sa' && step.octave >= 1 ? "Sa'" : step.swara
-  }
 
   const expectedStep =
     exerciseActive && expectedIndex >= 0 && expectedIndex < flatSequence.length

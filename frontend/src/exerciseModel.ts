@@ -33,6 +33,11 @@ export type RagaDefinition = {
   label: string
   talaLabel: string
   exercises: ExerciseDefinition[]
+
+  // Spec-driven raga identity
+  arohanam: SequenceStep[] // ascending (Sa to Sa')
+  avarohanam: SequenceStep[] // descending (Sa' to Sa)
+  swarasUsed: string[] // unique swara ids used (octave-agnostic)
 }
 
 export function deriveFlatSequence(phrases: ExercisePhrase[]): SequenceStep[] {
