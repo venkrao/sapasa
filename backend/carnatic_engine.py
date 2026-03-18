@@ -91,12 +91,27 @@ def nearest_swara(
     get a result.
     """
     best_key = min(freq_map, key=lambda k: abs(cents_deviation(f_sung, freq_map[k])))
-    swara = best_key.rsplit("_", 1)[0]          # "R2_-1" → "R2"
+    swara, oct_str = best_key.rsplit("_", 1)
+    oct_idx = int(oct_str)
+
+    # Sa_1, Sa_2, … are physically the same frequency as Sa'_0, Sa'_1, …
+    # Prefer the "Sa'" label for any Sa that sits an octave or more above the
+    # reference Sa, so upper-octave tonic reads correctly as "Sa'" not "Sa".
+    if swara == "Sa" and oct_idx >= 1:
+        swara = "Sa'"
+
     label = SWARA_LABELS.get(swara, swara)
     cents = cents_deviation(f_sung, freq_map[best_key])
     return best_key, label, round(cents, 1)
 
 
-# ── Pre-built map for the default shruti ─────────────────────────────────────
+# ── Pre-built map — rebuilt whenever the shruti changes ──────────────────────
 
 FREQ_MAP: dict[str, float] = build_frequency_map(SA_HZ)
+
+
+def set_sa_hz(hz: float) -> None:
+    """Update the active shruti and rebuild FREQ_MAP in place."""
+    global SA_HZ, FREQ_MAP
+    SA_HZ    = hz
+    FREQ_MAP = build_frequency_map(hz)

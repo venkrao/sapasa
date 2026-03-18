@@ -5,7 +5,23 @@
  * When shruti selection is added, only SA_HZ needs to change.
  */
 
-export const SA_HZ = 311.13 // D# / Eb
+export const SA_HZ = 311.13 // D# / Eb — default shruti
+
+/** All 12 chromatic shrutis at standard concert pitch (A4 = 440 Hz). */
+export const SHRUTI_LIST: { label: string; hz: number }[] = [
+  { label: 'C',      hz: 261.63 },
+  { label: 'C♯/D♭',  hz: 277.18 },
+  { label: 'D',      hz: 293.66 },
+  { label: 'D♯/E♭',  hz: 311.13 },
+  { label: 'E',      hz: 329.63 },
+  { label: 'F',      hz: 349.23 },
+  { label: 'F♯/G♭',  hz: 369.99 },
+  { label: 'G',      hz: 392.00 },
+  { label: 'G♯/A♭',  hz: 415.30 },
+  { label: 'A',      hz: 440.00 },
+  { label: 'A♯/B♭',  hz: 466.16 },
+  { label: 'B',      hz: 493.88 },
+]
 
 // 13 unique pitch positions (overlapping pairs stored under the Ri/Dha key)
 export const JI_RATIOS: Record<string, [number, number]> = {

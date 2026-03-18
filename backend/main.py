@@ -12,7 +12,7 @@ import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-from carnatic_engine import FREQ_MAP, nearest_swara
+import carnatic_engine
 
 SAMPLE_RATE = 44100
 BLOCK_SIZE = 512       # ~11 ms per audio callback
@@ -169,7 +169,7 @@ def _process_audio() -> None:
                 else:
                     _ema_freq = EMA_ALPHA * freq + (1.0 - EMA_ALPHA) * _ema_freq
                 note               = _nearest_note(_ema_freq)
-                _, swara, cents_ji = nearest_swara(_ema_freq, FREQ_MAP)
+                _, swara, cents_ji = carnatic_engine.nearest_swara(_ema_freq, carnatic_engine.FREQ_MAP)
                 event = {
                     "status": "note",
                     "note":   note,       # nearest Western ET semitone, e.g. "D#3"
@@ -192,17 +192,37 @@ def _audio_callback(indata: np.ndarray, frames: int, time_info, status) -> None:
         pass  # drop if the processing thread is behind
 
 
+def _apply_shruti(hz: float) -> None:
+    global _ema_freq
+    carnatic_engine.set_sa_hz(hz)
+    _ema_freq = None   # reset smoothing so next note re-anchors to new shruti
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
     await websocket.accept()
-    try:
+
+    async def send_loop() -> None:
         while True:
             with _event_lock:
                 event = dict(_latest_event)
             await websocket.send_text(json.dumps(event))
             await asyncio.sleep(0.02)
+
+    send_task = asyncio.create_task(send_loop())
+    try:
+        while True:
+            raw = await websocket.receive_text()
+            try:
+                msg = json.loads(raw)
+                if msg.get("type") == "set_shruti":
+                    _apply_shruti(float(msg["sa_hz"]))
+            except (json.JSONDecodeError, KeyError, ValueError):
+                pass
     except (WebSocketDisconnect, Exception):
         pass
+    finally:
+        send_task.cancel()
 
 
 if __name__ == "__main__":

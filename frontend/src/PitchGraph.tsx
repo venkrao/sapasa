@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react'
-import { SA_HZ, buildSwaraBands, nearestSwaraCents, type SwaraBand } from './swaras'
+import { buildSwaraBands, nearestSwaraCents, type SwaraBand } from './swaras'
 
 // ── grid & viewport constants ─────────────────────────────────────────────────
 
@@ -18,10 +18,6 @@ const JUMP_GUARD     = 300     // cents — viewport ignores larger jumps
 
 const LABEL_W = 46  // left axis: swara names
 const LABEL_R = 48  // right axis: Western note names
-
-// ── pre-built full-range swara band list ─────────────────────────────────────
-
-const SWARA_BANDS: SwaraBand[] = buildSwaraBands(SA_HZ, GRID_MIN_HZ, GRID_MAX_HZ)
 
 const PROMINENT = new Set(['Sa', 'Pa', "Sa'"])
 
@@ -63,14 +59,22 @@ function pitchColor(absCents: number): string {
 type Point = { t: number; freq: number | null }
 
 interface Props {
+  saHz:    number
   onMount: (push: (freq: number | null) => void) => void
 }
 
-export default function PitchGraph({ onMount }: Props) {
+export default function PitchGraph({ saHz, onMount }: Props) {
   const canvasRef           = useRef<HTMLCanvasElement>(null)
   const historyRef          = useRef<Point[]>([])
-  const displayCentreRef    = useRef<number>(SA_HZ)   // initialised to Sa
+  const displayCentreRef    = useRef<number>(saHz)    // initialised to Sa
   const rafRef              = useRef<number>(0)
+
+  // swara bands — rebuilt whenever saHz changes, read by the draw loop via ref
+  const swaraBandsRef = useRef<SwaraBand[]>(buildSwaraBands(saHz, GRID_MIN_HZ, GRID_MAX_HZ))
+  useEffect(() => {
+    swaraBandsRef.current      = buildSwaraBands(saHz, GRID_MIN_HZ, GRID_MAX_HZ)
+    displayCentreRef.current   = saHz   // jump viewport to new Sa on shruti change
+  }, [saHz])
 
   // drag-to-scroll state
   const isDraggingRef       = useRef(false)
@@ -210,7 +214,7 @@ export default function PitchGraph({ onMount }: Props) {
       }
 
       // ── 5. Swara bands + left labels ──────────────────────────────────────
-      const visibleBands = SWARA_BANDS
+      const visibleBands = swaraBandsRef.current
         .filter(b => b.freq >= viewMin && b.freq <= viewMax)
         .sort((a, b) => b.freq - a.freq)
 
@@ -278,7 +282,7 @@ export default function PitchGraph({ onMount }: Props) {
         }
 
         const y   = fToY(p.freq)
-        const col = pitchColor(nearestSwaraCents(p.freq, SWARA_BANDS))
+        const col = pitchColor(nearestSwaraCents(p.freq, swaraBandsRef.current))
 
         if (!inSeg || col !== segColor) {
           if (inSeg) ctx.stroke()

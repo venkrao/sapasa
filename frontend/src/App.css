@@ -27,16 +27,23 @@
   color: #525252;
 }
 
-.shruti-badge {
+.shruti-select {
   font-size: 0.8rem;
   font-weight: 500;
-  color: #404040;
+  color: #909090;
   background: #111;
   border: 1px solid #222;
   border-radius: 6px;
   padding: 3px 10px;
   letter-spacing: 0.04em;
+  cursor: pointer;
+  appearance: none;
+  outline: none;
 }
+
+.shruti-select:hover  { border-color: #333; color: #b0b0b0; }
+.shruti-select:focus  { border-color: #444; }
+.shruti-select option { background: #111; color: #909090; }
 
 /* ── Graph ── */
 .graph-container {

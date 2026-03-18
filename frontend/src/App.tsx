@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import './App.css'
 import PitchGraph from './PitchGraph'
+import { SA_HZ, SHRUTI_LIST } from './swaras'
 
 const WS_URL = 'ws://localhost:8765/ws'
 const RECONNECT_DELAY_MS = 2000
@@ -27,24 +28,40 @@ function centsLabel(cents: number): string {
 }
 
 export default function App() {
-  const [event, setEvent]       = useState<PitchEvent>({ status: 'idle' })
+  const [event, setEvent]         = useState<PitchEvent>({ status: 'idle' })
   const [connected, setConnected] = useState(false)
+  const [saHz, setSaHz]           = useState(SA_HZ)
 
-  const wsRef           = useRef<WebSocket | null>(null)
-  const reconnectTimer  = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const lastDisplayed   = useRef<number>(0)
-  const graphPushRef    = useRef<((freq: number | null) => void) | null>(null)
+  const wsRef          = useRef<WebSocket | null>(null)
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastDisplayed  = useRef<number>(0)
+  const graphPushRef   = useRef<((freq: number | null) => void) | null>(null)
+  const saHzRef        = useRef(SA_HZ)   // stable ref for use inside WS closures
 
   const onGraphMount = useCallback((push: (freq: number | null) => void) => {
     graphPushRef.current = push
   }, [])
+
+  function sendShruti(ws: WebSocket, hz: number) {
+    if (ws.readyState === WebSocket.OPEN)
+      ws.send(JSON.stringify({ type: 'set_shruti', sa_hz: hz }))
+  }
+
+  function onShrutiChange(hz: number) {
+    saHzRef.current = hz
+    setSaHz(hz)
+    if (wsRef.current) sendShruti(wsRef.current, hz)
+  }
 
   useEffect(() => {
     function connect() {
       const ws = new WebSocket(WS_URL)
       wsRef.current = ws
 
-      ws.onopen = () => setConnected(true)
+      ws.onopen = () => {
+        setConnected(true)
+        sendShruti(ws, saHzRef.current)
+      }
 
       ws.onmessage = (e: MessageEvent) => {
         try {
@@ -89,11 +106,19 @@ export default function App() {
     <div className="app">
       <header className="header">
         <span className="app-name">SaPaSa</span>
-        <span className="shruti-badge">D♯ / E♭</span>
+        <select
+          className="shruti-select"
+          value={saHz}
+          onChange={e => onShrutiChange(Number(e.target.value))}
+        >
+          {SHRUTI_LIST.map(s => (
+            <option key={s.hz} value={s.hz}>{s.label}</option>
+          ))}
+        </select>
       </header>
 
       <div className="graph-container">
-        <PitchGraph onMount={onGraphMount} />
+        <PitchGraph saHz={saHz} onMount={onGraphMount} />
       </div>
 
       <div className="note-panel">

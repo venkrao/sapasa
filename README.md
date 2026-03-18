@@ -1,6 +1,6 @@
 # SaPaSa
 
-A Carnatic pitch training tool for macOS. Listens to your voice and shows live cents deviation for Sa, Pa, and Sa′ against the D♯ (Eb) shruti.
+A Carnatic pitch training tool for macOS. Listens to your voice and shows live cents deviation against Just Intonation (JI) swarasthanas for the selected shruti.
 
 ## Requirements
 
@@ -46,18 +46,23 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 macOS will prompt for microphone access the first time the Python server starts.
 
+## Currently supported
+
+- **Shruti selection**: choose Sa as any Western pitch (C .. B) from the top-right selector.
+- **Live pitch detection**: shows **Carnatic swara name** + **Western note name** + **cents** in the bottom panel.
+- **Scrolling pitch graph**:
+  - **3-octave viewport** that follows your voice (log-frequency scale)
+  - **Drag up/down** on the graph to reposition the viewport (auto-follow resumes after a short pause)
+  - **60s history** trace for gamaka / movement
+
 ## How it works
 
-| Swara  | Target Hz | Ratio |
-|--------|-----------|-------|
-| Sa     | 311.13 Hz | 1 : 1 |
-| Pa     | 466.70 Hz | 3 : 2 |
-| Sa′    | 622.25 Hz | 2 : 1 |
+The backend estimates your fundamental frequency (Hz) and the frontend renders it over time.
+For swara identification, the app builds a JI frequency grid from the selected Sa and finds the nearest swarasthana.
 
-The app detects which swara you're singing automatically and shows the deviation in cents:
+The colour indicates how close you are to the nearest swarasthana:
 
 - **Green** — within ±10¢ (in tune)
 - **Amber** — ±10–25¢ (needs work)
-- **Red** — beyond ±25¢ (significantly off)
-
-Notes more than ±50¢ from any target are ignored.
+- **Red** — ±25–50¢ (significantly off)
+- **Dim grey** — more than ±50¢ from any swarasthana
