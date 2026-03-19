@@ -2,8 +2,9 @@ import type { ExerciseDefinition, SequenceStep } from '../exerciseModel'
 import { deriveFlatSequence } from '../exerciseModel'
 
 function stepToGraphBandKey(step: SequenceStep): string {
-  // Graph has a dedicated band key for upper Sa.
-  return step.swara === 'Sa' && step.octave >= 1 ? "Sa'" : step.swara
+  if (step.swara === 'Sa' && step.octave >= 1) return "Sa'"
+  if (step.octave >= 1) return `${step.swara}'`
+  return step.swara
 }
 
 export const SARALI_VARISAI_1: ExerciseDefinition = {

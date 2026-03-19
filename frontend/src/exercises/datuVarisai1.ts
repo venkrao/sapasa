@@ -2,7 +2,9 @@ import type { ExerciseDefinition, SequenceStep } from '../exerciseModel'
 import { deriveFlatSequence } from '../exerciseModel'
 
 function stepToGraphBandKey(step: SequenceStep): string {
-  return step.swara === 'Sa' && step.octave >= 1 ? "Sa'" : step.swara
+  if (step.swara === 'Sa' && step.octave >= 1) return "Sa'"
+  if (step.octave >= 1) return `${step.swara}'`
+  return step.swara
 }
 
 export const DAATU_VARISAI_1: ExerciseDefinition = {

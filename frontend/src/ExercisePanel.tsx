@@ -36,8 +36,27 @@ const SWARA_TO_NOTATION: Record<string, string> = {
   N3: 'N₃',
 }
 
+const TARA_NOTATION: Record<string, string> = {
+  R1: 'Ṙ',
+  G3: 'Ġ',
+  M1: 'Ṁ',
+  Pa: 'Ṗ',
+}
+
+const MANDRA_NOTATION: Record<string, string> = {
+  Sa: 'Ṣ',
+  R1: 'Ṛ',
+  G3: 'Ġ',
+  M1: 'Ṃ',
+  Pa: 'Ṗ',
+  D1: 'Ḍ',
+  N3: 'Ṇ',
+}
+
 function notationOf(step: SequenceStep): string {
   if (step.swara === 'Sa' && step.octave >= 1) return 'Ṡ'
+  if (step.octave >= 1)  return TARA_NOTATION[step.swara]   ?? step.swara
+  if (step.octave <= -1) return MANDRA_NOTATION[step.swara] ?? step.swara
   return SWARA_TO_NOTATION[step.swara] ?? step.swara
 }
 
@@ -150,38 +169,54 @@ export default function ExercisePanel({
             flatCursor += phrases[i].groups.reduce((acc, g) => acc + g.steps.length, 0)
           }
 
+          // Split this phrase's groups into visual lines using lineBreak.
+          const lines: typeof phrase.groups[] = []
+          let currentLine: typeof phrase.groups = []
+          phrase.groups.forEach((g, idx) => {
+            currentLine.push(g)
+            if (g.lineBreak || idx === phrase.groups.length - 1) {
+              lines.push(currentLine)
+              currentLine = []
+            }
+          })
+
           return (
-            <div
-              key={phraseIdx}
-              className={
-                'exercise-line ' + (phrase.label === 'descending' ? 'exercise-line-desc' : '')
-              }
-            >
-              {phrase.groups.map((group, gIdx) => {
-                const groupStart = flatCursor
+            <div key={phraseIdx}>
+              {lines.map((lineGroups, lineIdx) => (
+                <div
+                  key={lineIdx}
+                  className={
+                    'exercise-line ' +
+                    (phrase.label === 'descending' ? 'exercise-line-desc' : '')
+                  }
+                >
+                  {lineGroups.map((group, gIdx) => {
+                    const groupStart = flatCursor
 
-                const tiles = group.steps.map((step, sIdx) => {
-                  const tileFlatIndex = groupStart + sIdx
-                  const isExpected = exerciseActive && tileFlatIndex === expectedIndex
-                  return (
-                    <span
-                      key={gIdx + ':' + sIdx}
-                      className={'swara-tile ' + (isExpected ? 'expected' : '')}
-                    >
-                      {notationOf(step)}
-                    </span>
-                  )
-                })
+                    const tiles = group.steps.map((step, sIdx) => {
+                      const tileFlatIndex = groupStart + sIdx
+                      const isExpected = exerciseActive && tileFlatIndex === expectedIndex
+                      return (
+                        <span
+                          key={gIdx + ':' + sIdx}
+                          className={'swara-tile ' + (isExpected ? 'expected' : '')}
+                        >
+                          {notationOf(step)}
+                        </span>
+                      )
+                    })
 
-                flatCursor += group.steps.length
+                    flatCursor += group.steps.length
 
-                return (
-                  <span key={gIdx} className="exercise-group">
-                    {tiles}
-                    {group.beatBoundary ? <span className="beat-sep" /> : null}
-                  </span>
-                )
-              })}
+                    return (
+                      <span key={gIdx} className="exercise-group">
+                        {tiles}
+                        {group.beatBoundary ? <span className="beat-sep" /> : null}
+                      </span>
+                    )
+                  })}
+                </div>
+              ))}
             </div>
           )
         })}

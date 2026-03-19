@@ -9,6 +9,9 @@ export type ExerciseGroup = {
   steps: SequenceStep[]
   // If true, renderer draws a visible bar separator after this group.
   beatBoundary?: boolean
+  // Optional hint for the renderer: start a new visual line AFTER this group
+  // within the same phrase (useful for long tala cycles like alankaram rows).
+  lineBreak?: boolean
 }
 
 export type ExercisePhrase = {

@@ -2,12 +2,24 @@ import type { RagaDefinition, SequenceStep } from '../exerciseModel'
 import { SARALI_VARISAI_1 } from '../exercises/saraliVarisai1'
 import { JANTA_VARISAI_1 } from '../exercises/jantaVarisai1'
 import { DAATU_VARISAI_1 } from '../exercises/datuVarisai1'
+import { MELSTHAYI_1 } from '../exercises/melsthayi1'
+import { MADHYA_STHAYI_1 } from '../exercises/madhyaSthayi1'
+import { MANDRA_STHAYI_1 } from '../exercises/mandraSthayi1'
+import { ALANKARAM_1 } from '../exercises/alankaram1'
 
 export const MAYAMALAVAGOWLA: RagaDefinition = {
   id: 'mayamalavagowla',
   label: 'Mayamalavagowla',
   talaLabel: 'Adi-tala',
-  exercises: [SARALI_VARISAI_1, JANTA_VARISAI_1, DAATU_VARISAI_1],
+  exercises: [
+    SARALI_VARISAI_1,
+    JANTA_VARISAI_1,
+    DAATU_VARISAI_1,
+    MELSTHAYI_1,
+    MADHYA_STHAYI_1,
+    MANDRA_STHAYI_1,
+    ALANKARAM_1,
+  ],
 
   // From @specs/spec-raga-definition.md
   arohanam: [
