@@ -1,12 +1,13 @@
-import type { RagaDefinition } from '../exerciseModel'
+import type { RagaDefinition, SequenceStep } from '../exerciseModel'
 import { SARALI_VARISAI_1 } from '../exercises/saraliVarisai1'
-import type { SequenceStep } from '../exerciseModel'
+import { JANTA_VARISAI_1 } from '../exercises/jantaVarisai1'
+import { DAATU_VARISAI_1 } from '../exercises/datuVarisai1'
 
 export const MAYAMALAVAGOWLA: RagaDefinition = {
   id: 'mayamalavagowla',
   label: 'Mayamalavagowla',
   talaLabel: 'Adi-tala',
-  exercises: [SARALI_VARISAI_1],
+  exercises: [SARALI_VARISAI_1, JANTA_VARISAI_1, DAATU_VARISAI_1],
 
   // From @specs/spec-raga-definition.md
   arohanam: [
