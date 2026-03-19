@@ -64,17 +64,6 @@ interface Props {
   allowedSwaras?: string[] | null
   expectedSwara?: string | null
   onMount: (push: (freq: number | null) => void) => void
-
-  // Optional viewport override. When provided, the y-axis mapping is fixed to
-  // [viewportMinHz, viewportMaxHz], which effectively zooms swara lanes.
-  viewportMinHz?: number | null
-  viewportMaxHz?: number | null
-
-  // Optional y-axis zoom by octave span. When provided, the graph uses a fixed
-  // span (centered around the auto-scrolling display centre) instead of a
-  // fixed min/max. This increases lane height while keeping y-axis movement.
-  viewportOctaveSpan?: number | null
-  lockViewport?: boolean
 }
 
 export default function PitchGraph({
@@ -83,19 +72,11 @@ export default function PitchGraph({
   allowedSwaras,
   expectedSwara,
   onMount,
-  viewportMinHz,
-  viewportMaxHz,
-  viewportOctaveSpan,
-  lockViewport,
 }: Props) {
   const canvasRef           = useRef<HTMLCanvasElement>(null)
   const historyRef          = useRef<Point[]>([])
   const displayCentreRef    = useRef<number>(saHz)    // initialised to Sa
   const rafRef              = useRef<number>(0)
-  const viewportMinRef      = useRef<number | null>(null)
-  const viewportMaxRef      = useRef<number | null>(null)
-  const viewportSpanRef     = useRef<number | null>(null)
-  const lockViewportRef    = useRef<boolean>(false)
 
   // swara bands — rebuilt whenever saHz changes, read by the draw loop via ref
   const swaraBandsRef = useRef<SwaraBand[]>(buildSwaraBands(saHz, GRID_MIN_HZ, GRID_MAX_HZ))
@@ -112,20 +93,6 @@ export default function PitchGraph({
     if (paused) frozenNowRef.current = Date.now()
     else frozenNowRef.current = null
   }, [paused])
-
-  // Fixed viewport override support.
-  useEffect(() => {
-    viewportMinRef.current = viewportMinHz ?? null
-  }, [viewportMinHz])
-  useEffect(() => {
-    viewportMaxRef.current = viewportMaxHz ?? null
-  }, [viewportMaxHz])
-  useEffect(() => {
-    viewportSpanRef.current = viewportOctaveSpan ?? null
-  }, [viewportOctaveSpan])
-  useEffect(() => {
-    lockViewportRef.current = !!lockViewport
-  }, [lockViewport])
 
   // Exercise-aware emphasis/dimming (optional)
   const allowedSetRef    = useRef<Set<string> | null>(null)
@@ -173,7 +140,6 @@ export default function PitchGraph({
 
     // ── drag-to-scroll ────────────────────────────────────────────────────────
     function onPointerDown(e: PointerEvent) {
-      if (lockViewportRef.current) return
       canvas?.setPointerCapture(e.pointerId)
       isDraggingRef.current = true
       dragLastYRef.current  = e.clientY
@@ -182,18 +148,15 @@ export default function PitchGraph({
     }
 
     function onPointerMove(e: PointerEvent) {
-      if (lockViewportRef.current) return
       if (!isDraggingRef.current) return
       const dy = e.clientY - dragLastYRef.current
       dragLastYRef.current = e.clientY
-      // Reversed: dragging down should increase the viewport centre (opposite panning).
-      const spanOctaves = viewportSpanRef.current ?? OCTAVE_SPAN
-      const deltaOctaves = dy * (spanOctaves / H)
-      const halfSpanOverride = spanOctaves / 2
+      // dragging down → lower frequencies (negate delta)
+      const deltaOctaves = -dy * (OCTAVE_SPAN / H)
       displayCentreRef.current = Math.max(
-        GRID_MIN_HZ * Math.pow(2, halfSpanOverride),
+        GRID_MIN_HZ * Math.pow(2, HALF_SPAN),
         Math.min(
-          GRID_MAX_HZ / Math.pow(2, halfSpanOverride),
+          GRID_MAX_HZ / Math.pow(2, HALF_SPAN),
           displayCentreRef.current * Math.pow(2, deltaOctaves),
         ),
       )
@@ -221,7 +184,7 @@ export default function PitchGraph({
       const plotW = W - LABEL_W - LABEL_R
 
       // ── 1. Update display centre (skipped while user is dragging) ────────
-      if (!pausedRef.current && !autoScrollPaused.current && !lockViewportRef.current) {
+      if (!pausedRef.current && !autoScrollPaused.current) {
         const recentFreqs = historyRef.current
           .filter(p => p.freq !== null && now - p.t <= MEDIAN_WIN_MS)
           .map(p => p.freq as number)
@@ -240,34 +203,12 @@ export default function PitchGraph({
       }
 
       // ── 2. Viewport bounds ────────────────────────────────────────────────
-      const overrideMin = viewportMinRef.current
-      const overrideMax = viewportMaxRef.current
-
-      const spanOctaves = viewportSpanRef.current ?? null
-      const halfSpan = (spanOctaves ?? OCTAVE_SPAN) / 2
-      const useSpan = spanOctaves !== null && spanOctaves > 0
-
       const centre  = displayCentreRef.current
-      const computedMin = Math.max(GRID_MIN_HZ, centre / Math.pow(2, halfSpan))
-      const computedMax = Math.min(GRID_MAX_HZ, centre * Math.pow(2, halfSpan))
-
-      const viewMin = useSpan
-        ? computedMin
-        : overrideMin && overrideMin > 0
-          ? Math.max(GRID_MIN_HZ, overrideMin)
-          : computedMin
-
-      const viewMax = useSpan
-        ? computedMax
-        : overrideMax && overrideMax > 0
-          ? Math.min(GRID_MAX_HZ, overrideMax)
-          : computedMax
-
-      const safeViewMax = viewMax > viewMin ? viewMax : computedMax
-      const safeViewMin = viewMax > viewMin ? viewMin : computedMin
+      const viewMin = Math.max(GRID_MIN_HZ, centre / Math.pow(2, HALF_SPAN))
+      const viewMax = Math.min(GRID_MAX_HZ, centre * Math.pow(2, HALF_SPAN))
 
       // Shorthand for freq → Y using current viewport
-      const fToY = (f: number) => freqToY(f, H, safeViewMin, safeViewMax)
+      const fToY = (f: number) => freqToY(f, H, viewMin, viewMax)
 
       // ── 3. Background ─────────────────────────────────────────────────────
       ctx.fillStyle = '#0a0a0a'
@@ -281,7 +222,7 @@ export default function PitchGraph({
 
       for (let midi = 40; midi <= 96; midi++) {
         const f = noteFreq(midi)
-        if (f < safeViewMin || f > safeViewMax) continue
+        if (f < viewMin || f > viewMax) continue
 
         const y    = fToY(f)
         const name = noteName(midi)
@@ -305,7 +246,7 @@ export default function PitchGraph({
 
       // ── 5. Swara bands + left labels ──────────────────────────────────────
       const visibleBands = swaraBandsRef.current
-        .filter(b => b.freq >= safeViewMin && b.freq <= safeViewMax)
+        .filter(b => b.freq >= viewMin && b.freq <= viewMax)
         .sort((a, b) => b.freq - a.freq)
 
       let lastLabelY = -Infinity

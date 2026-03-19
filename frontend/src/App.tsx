@@ -108,10 +108,6 @@ export default function App() {
   const stableMatchCountRef = useRef(0)
   const lastMatchedExpectedRef = useRef<number>(-1) // tracks expectedIndex to reset count on change
 
-  // Note: We intentionally do NOT apply any pitch-graph zoom/custom viewport
-  // for arohanam/avarohanam right now. The normal auto-scrolling viewport keeps
-  // the UI responsive and avoids axis/grid artifacts.
-
   const wsRef          = useRef<WebSocket | null>(null)
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastDisplayed  = useRef<number>(0)
