@@ -1,0 +1,298 @@
+.ear-panel {
+  width: min(980px, 94vw);
+  margin: 0 auto;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(0,0,0,0.18);
+}
+
+.ear-controls {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.ear-control-block {
+  min-width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ear-label {
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6b6b6b;
+}
+
+.ear-select {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #bdbdbd;
+  background: #111;
+  border: 1px solid #222;
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+}
+
+.ear-select:hover {
+  border-color: #333;
+  color: #e5e5e5;
+}
+
+.ear-select option {
+  background: #111;
+  color: #909090;
+}
+
+.ear-duration-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ear-range {
+  width: min(380px, 62vw);
+}
+
+.ear-duration-value {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #cfcfcf;
+  font-variant-numeric: tabular-nums;
+}
+
+.ear-keyboard {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ear-swara-key {
+  position: relative;
+  height: 62px;
+  padding: 10px 10px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #bdbdbd;
+  cursor: pointer;
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+
+.ear-swara-key:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255,255,255,0.18);
+}
+
+.ear-swara-key:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.18);
+}
+
+.ear-swara-playing {
+  border-color: color-mix(in srgb, var(--ear-accent) 60%, white 20%);
+  background: color-mix(in srgb, var(--ear-accent) 18%, black 82%);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--ear-accent) 40%, transparent 60%),
+    0 0 18px color-mix(in srgb, var(--ear-accent) 38%, transparent 62%);
+  color: #f0fdf4;
+}
+
+/* Quiz answer states */
+.ear-swara-correct {
+  border-color: rgba(74, 222, 128, 0.65);
+  background: rgba(74, 222, 128, 0.14);
+  box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.35);
+  color: #f0fdf4;
+}
+
+.ear-swara-wrong {
+  border-color: rgba(248, 113, 113, 0.70);
+  background: rgba(248, 113, 113, 0.14);
+  box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.35);
+  color: #fff1f2;
+}
+
+.ear-swara-dim {
+  opacity: 0.35;
+  filter: saturate(0.7);
+}
+
+.ear-quiz-controls {
+  margin-top: 14px;
+  padding: 12px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(0,0,0,0.16);
+}
+
+.ear-quiz-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.ear-quiz-score {
+  font-size: 0.85rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  color: #bdbdbd;
+}
+
+.ear-quiz-idle {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.ear-quiz-phase {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ear-quiz-prompt {
+  font-size: 0.92rem;
+  color: #e5e5e5;
+  font-weight: 800;
+}
+
+.ear-quiz-result {
+  font-size: 0.92rem;
+  color: #e5e5e5;
+  font-weight: 800;
+}
+
+.ear-quiz-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ear-quiz-btn {
+  font-size: 0.82rem;
+  font-weight: 900;
+  color: #e5e5e5;
+  background: #111;
+  border: 1px solid #222;
+  border-radius: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.ear-quiz-btn:hover { border-color: #333; }
+
+.ear-quiz-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ear-quiz-btn-primary {
+  border-color: rgba(255,255,255,0.12);
+}
+
+.ear-quiz-start-top {
+  padding: 8px 12px;
+  margin-top: 2px;
+}
+
+.ear-tone-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.ear-quiz-btn-end {
+  color: #fb7185;
+}
+
+.ear-quiz-summary {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  color: #a3a3a3;
+  font-weight: 800;
+}
+
+.ear-playinfo {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(0,0,0,0.14);
+  color: #bdbdbd;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  font-size: 0.85rem;
+}
+
+.ear-playinfo-hz {
+  font-variant-numeric: tabular-nums;
+  color: #e5e5e5;
+}
+
+.ear-playinfo-swara {
+  color: #f0fdf4;
+}
+
+.ear-key-main {
+  display: block;
+  font-size: 1.02rem;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+.ear-key-secondary {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #7a7a7a;
+}
+
+.ear-key-badge {
+  position: absolute;
+  top: 7px;
+  right: 9px;
+  font-size: 0.7rem;
+  font-weight: 900;
+  color: rgba(229, 231, 235, 0.7);
+  letter-spacing: 0.04em;
+}
+
+.ear-swara-playing .ear-key-badge {
+  color: rgba(255,255,255,0.92);
+}
+
+@media (max-width: 760px) {
+  .ear-controls {
+    justify-content: flex-start;
+  }
+
+  .ear-control-block {
+    min-width: 100%;
+  }
+
+  .ear-keyboard {
+    gap: 8px;
+  }
+
+  .ear-quiz-actions {
+    justify-content: flex-start;
+  }
+}
+
