@@ -233,7 +233,7 @@ export default function EarTrainerPanel() {
     const nodes: AudioNode[] = []
 
     const master = ctx.createGain()
-    master.gain.setValueAtTime(0.24, now)
+    master.gain.setValueAtTime(0.2, now)
     master.connect(ctx.destination)
     nodes.push(master)
 
@@ -277,14 +277,14 @@ export default function EarTrainerPanel() {
 
     const bark = ctx.createBiquadFilter()
     bark.type = 'peaking'
-    bark.frequency.setValueAtTime(Math.min(4000, frequencyHz * 2.7), now)
-    bark.Q.setValueAtTime(5, now)
-    bark.gain.setValueAtTime(6, now)
+    bark.frequency.setValueAtTime(Math.min(3200, frequencyHz * 2.5), now)
+    bark.Q.setValueAtTime(2.6, now)
+    bark.gain.setValueAtTime(2.5, now)
 
     const dryBus = ctx.createGain()
     const delay = ctx.createDelay(0.03)
     const feedback = ctx.createGain()
-    feedback.gain.setValueAtTime(0.15, now)
+    feedback.gain.setValueAtTime(0.1, now)
     delay.delayTime.setValueAtTime(0.007, now)
 
     bark.connect(dryBus)
@@ -325,58 +325,80 @@ export default function EarTrainerPanel() {
   }
 
   function playGuitar(ctx: AudioContext, frequencyHz: number, durationSec: number) {
-    // DelayNode timing limits make very low notes unreliable; fall back gracefully.
-    if (frequencyHz < 333) {
-      playPiano(ctx, frequencyHz, durationSec)
-      return
-    }
-
+    // Stable plucked-string approximation (non-feedback) to avoid robotic artifacts.
     const now = ctx.currentTime
     const nearZero = 0.0001
+    const rel = now + Math.max(0.15, durationSec * 1.05)
 
-    const delayTime = Math.max(0.003, 1 / frequencyHz)
-    const noiseLength = Math.max(2, Math.floor(ctx.sampleRate / frequencyHz))
+    const sources: OscillatorNode[] = []
+    const nodes: AudioNode[] = []
+
+    // Fundamental + a couple of partials for string brightness.
+    const harmonicMultipliers = [1, 2.01, 2.99]
+    const harmonicWeights = [1.0, 0.32, 0.12]
+
+    const master = ctx.createGain()
+    master.gain.setValueAtTime(nearZero, now)
+    master.gain.linearRampToValueAtTime(0.22, now + 0.006)
+    master.gain.exponentialRampToValueAtTime(nearZero, rel)
+
+    const bodyLowpass = ctx.createBiquadFilter()
+    bodyLowpass.type = 'lowpass'
+    bodyLowpass.frequency.setValueAtTime(Math.min(2200, Math.max(900, frequencyHz * 3.2)), now)
+    bodyLowpass.Q.setValueAtTime(0.8, now)
+
+    const bodyHighpass = ctx.createBiquadFilter()
+    bodyHighpass.type = 'highpass'
+    bodyHighpass.frequency.setValueAtTime(70, now)
+
+    bodyLowpass.connect(bodyHighpass)
+    bodyHighpass.connect(master)
+    master.connect(ctx.destination)
+    nodes.push(master, bodyLowpass, bodyHighpass)
+
+    harmonicMultipliers.forEach((mult, i) => {
+      const osc = ctx.createOscillator()
+      osc.type = i === 0 ? 'triangle' : 'sine'
+      osc.frequency.setValueAtTime(frequencyHz * mult, now)
+
+      const g = ctx.createGain()
+      const partialRel = now + Math.max(0.06, durationSec * (i === 0 ? 1.0 : i === 1 ? 0.6 : 0.4))
+      g.gain.setValueAtTime(nearZero, now)
+      g.gain.linearRampToValueAtTime(harmonicWeights[i] * 0.55, now + 0.004)
+      g.gain.exponentialRampToValueAtTime(nearZero, partialRel)
+
+      osc.connect(g)
+      g.connect(bodyLowpass)
+      osc.start(now)
+      osc.stop(partialRel + 0.04)
+
+      sources.push(osc)
+      nodes.push(g)
+    })
+
+    // Tiny filtered noise burst for pick attack transient.
+    const noiseLength = Math.max(64, Math.floor(ctx.sampleRate * 0.008))
     const noise = ctx.createBuffer(1, noiseLength, ctx.sampleRate)
     const data = noise.getChannelData(0)
     for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
 
-    const src = ctx.createBufferSource()
-    src.buffer = noise
-    src.loop = false
+    const noiseSrc = ctx.createBufferSource()
+    noiseSrc.buffer = noise
+    noiseSrc.loop = false
+    const noiseGain = ctx.createGain()
+    noiseGain.gain.setValueAtTime(0.045, now)
+    noiseGain.gain.exponentialRampToValueAtTime(nearZero, now + 0.015)
+    const noiseLP = ctx.createBiquadFilter()
+    noiseLP.type = 'lowpass'
+    noiseLP.frequency.setValueAtTime(3800, now)
+    noiseLP.Q.setValueAtTime(0.5, now)
+    noiseSrc.connect(noiseLP)
+    noiseLP.connect(noiseGain)
+    noiseGain.connect(bodyLowpass)
+    noiseSrc.start(now)
+    noiseSrc.stop(now + 0.02)
 
-    const inGain = ctx.createGain()
-    inGain.gain.setValueAtTime(1, now)
-    const feedback = ctx.createGain()
-    feedback.gain.setValueAtTime(0.98, now)
-    const delay = ctx.createDelay(1)
-    delay.delayTime.setValueAtTime(delayTime, now)
-    const loopLowpass = ctx.createBiquadFilter()
-    loopLowpass.type = 'lowpass'
-    loopLowpass.frequency.setValueAtTime(2000, now)
-
-    // Optional extra warmth towards nylon-like decay.
-    const nylonLowpass = ctx.createBiquadFilter()
-    nylonLowpass.type = 'lowpass'
-    nylonLowpass.frequency.setValueAtTime(900, now)
-
-    const master = ctx.createGain()
-    const rel = now + Math.max(0.15, durationSec)
-    master.gain.setValueAtTime(0.22, now)
-    master.gain.exponentialRampToValueAtTime(nearZero, rel)
-    master.connect(ctx.destination)
-
-    src.connect(inGain)
-    inGain.connect(delay)
-    delay.connect(loopLowpass)
-    loopLowpass.connect(feedback)
-    feedback.connect(delay)
-    loopLowpass.connect(nylonLowpass)
-    nylonLowpass.connect(master)
-
-    src.start(now)
-    src.stop(now + 0.03)
-
-    registerGraph([src], [inGain, feedback, delay, loopLowpass, nylonLowpass, master])
+    registerGraph([noiseSrc, ...sources], [noiseGain, noiseLP, ...nodes])
   }
 
   function playNote(
