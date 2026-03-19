@@ -100,17 +100,16 @@ export default function EarTrainerPanel() {
   const [noteDurationSec, setNoteDurationSec] = useState(1.5)
   const [activeSwara, setActiveSwara] = useState<string | null>(null)
   const [lastPlayedHz, setLastPlayedHz] = useState<number | null>(null)
-  const [tonePreset, setTonePreset] = useState<TonePreset>('carnatic')
+  const [tonePreset, setTonePreset] = useState<TonePreset>('veena')
 
   const audioCtxRef = useRef<AudioContext | null>(null)
-  const currentOscRef = useRef<OscillatorNode | null>(null)
-  const currentGainRef = useRef<GainNode | null>(null)
-  const currentFilterRef = useRef<BiquadFilterNode | null>(null)
+  const currentSourceRefs = useRef<Array<OscillatorNode | AudioBufferSourceNode>>([])
+  const currentNodeRefs = useRef<AudioNode[]>([])
   const activeResetTimerRef = useRef<number | null>(null)
 
   // ── Quiz mode state machine ───────────────────────────────────────────
   type QuizPhase = 'idle' | 'listening' | 'answered'
-  type TonePreset = 'carnatic' | 'sine' | 'square' | 'sawtooth' | 'guitar' | 'piano'
+  type TonePreset = 'veena' | 'piano' | 'guitar' | 'sine' | 'triangle'
   const [quizPhase, setQuizPhase] = useState<QuizPhase>('idle')
   const [mysterySwara, setMysterySwara] = useState<SwaraDef | null>(null)
   const [userGuess, setUserGuess] = useState<SwaraDef | null>(null)
@@ -154,34 +153,29 @@ export default function EarTrainerPanel() {
   }
 
   function stopCurrentNote() {
-    const osc = currentOscRef.current
-    const gain = currentGainRef.current
-    const filter = currentFilterRef.current
-
-    try {
-      osc?.stop()
-    } catch {
-      // Ignore errors from stopping an already-stopped oscillator.
-    }
-    try {
-      osc?.disconnect()
-    } catch {
-      // ignore
-    }
-    try {
-      filter?.disconnect()
-    } catch {
-      // ignore
-    }
-    try {
-      gain?.disconnect()
-    } catch {
-      // ignore
+    for (const src of currentSourceRefs.current) {
+      try {
+        src.stop()
+      } catch {
+        // ignore
+      }
+      try {
+        src.disconnect()
+      } catch {
+        // ignore
+      }
     }
 
-    currentOscRef.current = null
-    currentGainRef.current = null
-    currentFilterRef.current = null
+    for (const node of currentNodeRefs.current) {
+      try {
+        node.disconnect()
+      } catch {
+        // ignore
+      }
+    }
+
+    currentSourceRefs.current = []
+    currentNodeRefs.current = []
   }
 
   useEffect(() => {
@@ -192,34 +186,222 @@ export default function EarTrainerPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function toneConfig(freqHz: number): {
-    oscType: OscillatorType
-    maxGain: number
-    attackTimeSec: number
-    useFilter: boolean
-    filterFreqHz: number
-    filterQ: number
-  } {
-    // Keep envelope behavior aligned with the spec.
-    // "Tone presets" only change oscillator/filter timbre.
-    switch (tonePreset) {
+  function registerGraph(
+    sources: Array<OscillatorNode | AudioBufferSourceNode>,
+    nodes: AudioNode[],
+  ) {
+    currentSourceRefs.current = sources
+    currentNodeRefs.current = nodes
+  }
+
+  function playSimpleWave(
+    ctx: AudioContext,
+    frequencyHz: number,
+    durationSec: number,
+    oscType: OscillatorType,
+    maxGain: number,
+    attackTimeSec: number,
+  ) {
+    const now = ctx.currentTime
+    const releaseEndTime = now + Math.max(0.08, durationSec)
+    const nearZero = 0.0001
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+
+    osc.type = oscType
+    osc.frequency.setValueAtTime(frequencyHz, now)
+
+    gain.gain.setValueAtTime(nearZero, now)
+    gain.gain.linearRampToValueAtTime(maxGain, now + attackTimeSec)
+    gain.gain.exponentialRampToValueAtTime(nearZero, releaseEndTime)
+
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+
+    osc.start(now)
+    osc.stop(releaseEndTime + 0.05)
+
+    registerGraph([osc], [gain])
+  }
+
+  function playPiano(ctx: AudioContext, frequencyHz: number, durationSec: number) {
+    const now = ctx.currentTime
+    const nearZero = 0.0001
+    const harmonics = [1, 2, 3, 4, 5, 6]
+    const weights = [1.0, 0.6, 0.4, 0.2, 0.1, 0.05]
+    const sources: OscillatorNode[] = []
+    const nodes: AudioNode[] = []
+
+    const master = ctx.createGain()
+    master.gain.setValueAtTime(0.24, now)
+    master.connect(ctx.destination)
+    nodes.push(master)
+
+    harmonics.forEach((h, i) => {
+      const osc = ctx.createOscillator()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(frequencyHz * h, now)
+
+      const g = ctx.createGain()
+      const decayMult = i === 0 ? 1 : i <= 2 ? 0.6 : 0.3
+      const rel = now + Math.max(0.05, durationSec * decayMult)
+      g.gain.setValueAtTime(nearZero, now)
+      g.gain.linearRampToValueAtTime(weights[i] * 0.65, now + 0.01)
+      g.gain.exponentialRampToValueAtTime(nearZero, rel)
+
+      osc.connect(g)
+      g.connect(master)
+
+      osc.start(now)
+      osc.stop(rel + 0.05)
+
+      sources.push(osc)
+      nodes.push(g)
+    })
+
+    registerGraph(sources, nodes)
+  }
+
+  function playVeena(ctx: AudioContext, frequencyHz: number, durationSec: number) {
+    const now = ctx.currentTime
+    const nearZero = 0.0001
+    const harmonics = [1, 2, 3, 4, 5]
+    const weights = [1.0, 0.7, 0.5, 0.35, 0.2]
+    const sources: OscillatorNode[] = []
+    const nodes: AudioNode[] = []
+
+    const master = ctx.createGain()
+    master.gain.setValueAtTime(0.2, now)
+    master.connect(ctx.destination)
+    nodes.push(master)
+
+    const bark = ctx.createBiquadFilter()
+    bark.type = 'peaking'
+    bark.frequency.setValueAtTime(Math.min(4000, frequencyHz * 2.7), now)
+    bark.Q.setValueAtTime(5, now)
+    bark.gain.setValueAtTime(6, now)
+
+    const dryBus = ctx.createGain()
+    const delay = ctx.createDelay(0.03)
+    const feedback = ctx.createGain()
+    feedback.gain.setValueAtTime(0.15, now)
+    delay.delayTime.setValueAtTime(0.007, now)
+
+    bark.connect(dryBus)
+    dryBus.connect(master)
+    dryBus.connect(delay)
+    delay.connect(feedback)
+    feedback.connect(delay)
+    delay.connect(master)
+
+    nodes.push(bark, dryBus, delay, feedback)
+
+    harmonics.forEach((h, i) => {
+      const osc = ctx.createOscillator()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(frequencyHz * h, now)
+      if (h > 1) {
+        const detuneCents = (Math.random() * 2 - 1) * (3 + i)
+        osc.detune.setValueAtTime(detuneCents, now)
+      }
+
+      const g = ctx.createGain()
+      const rel = now + Math.max(0.08, durationSec * 1.5)
+      g.gain.setValueAtTime(nearZero, now)
+      g.gain.linearRampToValueAtTime(weights[i] * 0.38, now + 0.02)
+      g.gain.exponentialRampToValueAtTime(nearZero, rel)
+
+      osc.connect(g)
+      g.connect(bark)
+
+      osc.start(now)
+      osc.stop(rel + 0.05)
+
+      sources.push(osc)
+      nodes.push(g)
+    })
+
+    registerGraph(sources, nodes)
+  }
+
+  function playGuitar(ctx: AudioContext, frequencyHz: number, durationSec: number) {
+    // DelayNode timing limits make very low notes unreliable; fall back gracefully.
+    if (frequencyHz < 333) {
+      playPiano(ctx, frequencyHz, durationSec)
+      return
+    }
+
+    const now = ctx.currentTime
+    const nearZero = 0.0001
+
+    const delayTime = Math.max(0.003, 1 / frequencyHz)
+    const noiseLength = Math.max(2, Math.floor(ctx.sampleRate / frequencyHz))
+    const noise = ctx.createBuffer(1, noiseLength, ctx.sampleRate)
+    const data = noise.getChannelData(0)
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
+
+    const src = ctx.createBufferSource()
+    src.buffer = noise
+    src.loop = false
+
+    const inGain = ctx.createGain()
+    inGain.gain.setValueAtTime(1, now)
+    const feedback = ctx.createGain()
+    feedback.gain.setValueAtTime(0.98, now)
+    const delay = ctx.createDelay(1)
+    delay.delayTime.setValueAtTime(delayTime, now)
+    const loopLowpass = ctx.createBiquadFilter()
+    loopLowpass.type = 'lowpass'
+    loopLowpass.frequency.setValueAtTime(2000, now)
+
+    // Optional extra warmth towards nylon-like decay.
+    const nylonLowpass = ctx.createBiquadFilter()
+    nylonLowpass.type = 'lowpass'
+    nylonLowpass.frequency.setValueAtTime(900, now)
+
+    const master = ctx.createGain()
+    const rel = now + Math.max(0.15, durationSec)
+    master.gain.setValueAtTime(0.22, now)
+    master.gain.exponentialRampToValueAtTime(nearZero, rel)
+    master.connect(ctx.destination)
+
+    src.connect(inGain)
+    inGain.connect(delay)
+    delay.connect(loopLowpass)
+    loopLowpass.connect(feedback)
+    feedback.connect(delay)
+    loopLowpass.connect(nylonLowpass)
+    nylonLowpass.connect(master)
+
+    src.start(now)
+    src.stop(now + 0.03)
+
+    registerGraph([src], [inGain, feedback, delay, loopLowpass, nylonLowpass, master])
+  }
+
+  function playNote(
+    frequencyHz: number,
+    durationSec: number,
+    timbre: TonePreset,
+    ctx: AudioContext,
+  ) {
+    switch (timbre) {
+      case 'piano':
+        playPiano(ctx, frequencyHz, durationSec)
+        return
+      case 'guitar':
+        playGuitar(ctx, frequencyHz, durationSec)
+        return
+      case 'veena':
+        playVeena(ctx, frequencyHz, durationSec)
+        return
       case 'sine':
-        return { oscType: 'sine', maxGain: 0.28, attackTimeSec: 0.02, useFilter: false, filterFreqHz: 0, filterQ: 0 }
-      case 'square':
-        return { oscType: 'square', maxGain: 0.18, attackTimeSec: 0.01, useFilter: false, filterFreqHz: 0, filterQ: 0 }
-      case 'sawtooth':
-        return { oscType: 'sawtooth', maxGain: 0.22, attackTimeSec: 0.015, useFilter: false, filterFreqHz: 0, filterQ: 0 }
-      case 'guitar': {
-        const cutoff = Math.min(2400, Math.max(450, freqHz * 1.9))
-        return { oscType: 'sawtooth', maxGain: 0.2, attackTimeSec: 0.012, useFilter: true, filterFreqHz: cutoff, filterQ: 0.9 }
-      }
-      case 'piano': {
-        const cutoff = Math.min(3200, Math.max(600, freqHz * 2.4))
-        return { oscType: 'triangle', maxGain: 0.2, attackTimeSec: 0.008, useFilter: true, filterFreqHz: cutoff, filterQ: 0.7 }
-      }
-      case 'carnatic':
+        playSimpleWave(ctx, frequencyHz, durationSec, 'sine', 0.28, 0.02)
+        return
+      case 'triangle':
       default:
-        return { oscType: 'triangle', maxGain: 0.33, attackTimeSec: 0.02, useFilter: false, filterFreqHz: 0, filterQ: 0 }
+        playSimpleWave(ctx, frequencyHz, durationSec, 'triangle', 0.33, 0.02)
+        return
     }
   }
 
@@ -238,42 +420,7 @@ export default function EarTrainerPanel() {
 
     const freq = basePitchHz * def.ratio
     setLastPlayedHz(freq)
-    const now = ctx.currentTime
-
-    const releaseEndTime = now + Math.max(0.08, noteDurationSec)
-    const nearZero = 0.0001
-
-    const cfg = toneConfig(freq)
-
-    const osc = ctx.createOscillator()
-    osc.type = cfg.oscType
-    osc.frequency.setValueAtTime(freq, now)
-
-    const gain = ctx.createGain()
-    gain.gain.setValueAtTime(nearZero, now)
-    gain.gain.linearRampToValueAtTime(cfg.maxGain, now + cfg.attackTimeSec)
-    gain.gain.exponentialRampToValueAtTime(nearZero, releaseEndTime)
-
-    if (cfg.useFilter) {
-      const filter = ctx.createBiquadFilter()
-      filter.type = 'lowpass'
-      filter.frequency.setValueAtTime(cfg.filterFreqHz, now)
-      filter.Q.setValueAtTime(cfg.filterQ, now)
-      osc.connect(filter)
-      filter.connect(gain)
-      currentFilterRef.current = filter
-    } else {
-      osc.connect(gain)
-      currentFilterRef.current = null
-    }
-    gain.connect(ctx.destination)
-
-    osc.start(now)
-    // Keep stop aligned with the envelope end to avoid lingering clicks.
-    osc.stop(releaseEndTime + 0.05)
-
-    currentOscRef.current = osc
-    currentGainRef.current = gain
+    playNote(freq, noteDurationSec, tonePreset, ctx)
 
     if (opts?.highlight ?? true) setActiveSwara(def.short)
     else setActiveSwara(null)
@@ -326,8 +473,7 @@ export default function EarTrainerPanel() {
     osc.start(now)
     osc.stop(now + durationSec + 0.05)
 
-    currentOscRef.current = osc
-    currentGainRef.current = gain
+    registerGraph([osc], [gain])
 
     // Confirm tones don't need persistent visual "playing" highlight.
     setActiveSwara(null)
@@ -416,8 +562,19 @@ export default function EarTrainerPanel() {
         </div>
 
         <div className="ear-control-block">
-          <div className="ear-tone-top-row">
-            <div className="ear-label">Tone preset</div>
+          <div className="ear-label">Tone preset</div>
+          <div className="ear-tone-input-row">
+            <select
+              className="ear-select"
+              value={tonePreset}
+              onChange={e => setTonePreset(e.target.value as TonePreset)}
+            >
+              <option value="veena">Veena-ish</option>
+              <option value="piano">Piano-ish</option>
+              <option value="guitar">Guitar-ish</option>
+              <option value="sine">Sine (pure)</option>
+              <option value="triangle">Triangle</option>
+            </select>
             {quizPhase === 'idle' ? (
               <button
                 className="ear-quiz-btn ear-quiz-btn-primary ear-quiz-start-top"
@@ -428,18 +585,6 @@ export default function EarTrainerPanel() {
               </button>
             ) : null}
           </div>
-          <select
-            className="ear-select"
-            value={tonePreset}
-            onChange={e => setTonePreset(e.target.value as TonePreset)}
-          >
-            <option value="carnatic">Carnatic (triangle)</option>
-            <option value="sine">Sine</option>
-            <option value="square">Square</option>
-            <option value="sawtooth">Sawtooth</option>
-            <option value="guitar">Guitar-ish (filtered)</option>
-            <option value="piano">Piano-ish (filtered)</option>
-          </select>
         </div>
       </div>
 

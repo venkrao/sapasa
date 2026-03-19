@@ -205,15 +205,18 @@
 
 .ear-quiz-start-top {
   padding: 8px 12px;
-  margin-top: 2px;
+  flex-shrink: 0;
 }
 
-.ear-tone-top-row {
+.ear-tone-input-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: 10px;
+}
+
+.ear-tone-input-row .ear-select {
+  flex: 1;
+  min-width: 0;
 }
 
 .ear-quiz-btn-end {
