@@ -107,6 +107,7 @@ export default function App() {
   const flatSequenceRef   = useRef<SequenceStep[]>(flatSequence)
   const stableMatchCountRef = useRef(0)
   const lastMatchedExpectedRef = useRef<number>(-1) // tracks expectedIndex to reset count on change
+  const exerciseMatchSuppressUntilRef = useRef(0)
 
   const wsRef          = useRef<WebSocket | null>(null)
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -195,6 +196,12 @@ export default function App() {
     setListening(listeningRef.current)
   }
 
+  const onReferencePlaybackStart = useCallback((suppressMs: number) => {
+    exerciseMatchSuppressUntilRef.current = performance.now() + suppressMs
+    stableMatchCountRef.current = 0
+    lastMatchedExpectedRef.current = -1
+  }, [])
+
   const note = event.status === 'note' ? (event as NoteEvent) : null
   const idleText = !listening ? 'paused' : (connected ? 'listening…' : 'connecting…')
 
@@ -231,6 +238,7 @@ export default function App() {
 
   function maybeAdvanceExercise(incoming: PitchEvent) {
     if (!exerciseActiveRef.current) return
+    if (performance.now() < exerciseMatchSuppressUntilRef.current) return
     if (incoming.status !== 'note') return
 
     const seq = flatSequenceRef.current
@@ -380,6 +388,8 @@ export default function App() {
           canStart={canStart}
           onStart={startExercise}
           onStop={stopExercise}
+          saHz={saHz}
+          onReferencePlaybackStart={onReferencePlaybackStart}
           selectedRagaId={selectedRagaId}
           selectedExerciseId={selectedExerciseId}
           ragaOptions={ragaOptions}

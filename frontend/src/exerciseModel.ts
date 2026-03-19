@@ -1,3 +1,5 @@
+import { swaraHz } from './swaras'
+
 export type SequenceStep = {
   swara: string  // swara key, e.g. 'Sa', 'R1', 'Pa'
   octave: number // octave relative to Sa (0 = madhya, 1 = tara, -1 = mandra)
@@ -45,5 +47,10 @@ export type RagaDefinition = {
 
 export function deriveFlatSequence(phrases: ExercisePhrase[]): SequenceStep[] {
   return phrases.flatMap(phrase => phrase.groups.flatMap(group => group.steps))
+}
+
+/** Target Hz for an exercise step at the given Sa (matches pitch-matching logic). */
+export function sequenceStepHz(step: SequenceStep, saHz: number): number {
+  return swaraHz(step.swara, saHz, step.octave)
 }
 

@@ -1,5 +1,7 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
 import './ExercisePanel.css'
-import type { ExercisePhrase, SequenceStep } from './exerciseModel'
+import { EarTrainerAudioEngine } from './audio/earTrainerAudioEngine'
+import { sequenceStepHz, type ExercisePhrase, type SequenceStep } from './exerciseModel'
 
 export type Option = { id: string; label: string }
 
@@ -22,9 +24,21 @@ export type ExercisePanelProps = {
   onStart: () => void
   onStop: () => void
 
+  /** Shruti Sa in Hz — used for reference playback of the expected note. */
+  saHz: number
+
+  /**
+   * Fired when reference playback starts so the parent can ignore mic input briefly
+   * (speaker → mic otherwise matches the exercise target and advances the step).
+   */
+  onReferencePlaybackStart?: (suppressExerciseMatchingMs: number) => void
+
   // Optional fixed width override (used for draggable divider resizing).
   panelWidthPx?: number
 }
+
+/** Playback length passed to the synth — keep in sync with `playExpectedNote`. */
+const REFERENCE_NOTE_DURATION_SEC = 0.55
 
 const SWARA_TO_NOTATION: Record<string, string> = {
   Sa: 'S',
@@ -76,8 +90,66 @@ export default function ExercisePanel({
   canStart,
   onStart,
   onStop,
+  saHz,
+  onReferencePlaybackStart,
   panelWidthPx,
 }: ExercisePanelProps) {
+  const audioRef = useRef<EarTrainerAudioEngine | null>(null)
+  const playsThisStepRef = useRef(0)
+  const sessionPlaysRef = useRef(0)
+  const [referenceHint, setReferenceHint] = useState<string | null>(null)
+
+  useEffect(() => {
+    return () => {
+      audioRef.current?.dispose()
+      audioRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    sessionPlaysRef.current = 0
+    playsThisStepRef.current = 0
+    setReferenceHint(null)
+  }, [exerciseActive])
+
+  useEffect(() => {
+    playsThisStepRef.current = 0
+    setReferenceHint(null)
+  }, [expectedIndex])
+
+  const playExpectedNote = useCallback(async () => {
+    if (!exerciseActive || !expectedStep) return
+
+    if (!audioRef.current) audioRef.current = new EarTrainerAudioEngine()
+
+    playsThisStepRef.current += 1
+    sessionPlaysRef.current += 1
+
+    // Block exercise matching before audio: mic can pick up the speaker immediately.
+    const suppressMs = Math.ceil(REFERENCE_NOTE_DURATION_SEC * 1000 + 850)
+    onReferencePlaybackStart?.(suppressMs)
+
+    const hz = sequenceStepHz(expectedStep, saHz)
+    await audioRef.current.playNote(hz, REFERENCE_NOTE_DURATION_SEC, 'sine')
+
+    const perStep = playsThisStepRef.current
+    const session = sessionPlaysRef.current
+    const sessionThreshold = Math.max(12, totalSteps * 2)
+
+    let hint: string | null = null
+    if (perStep >= 6) {
+      hint =
+        'You’ve replayed the reference many times on this note — try once without it, even if it’s rough.'
+    } else if (perStep >= 3) {
+      hint = 'Try to match from memory before playing the tone again.'
+    } else if (session >= sessionThreshold) {
+      hint =
+        'You’ve used the reference a lot this run — lean on your ear for the next few notes if you can.'
+    }
+
+    setReferenceHint(hint)
+  }, [exerciseActive, expectedStep, onReferencePlaybackStart, saHz, totalSteps])
+
   const ragaLabel =
     ragaOptions.find(r => r.id === selectedRagaId)?.label ??
     (selectedRagaId ? selectedRagaId : '')
@@ -159,6 +231,20 @@ export default function ExercisePanel({
         <div className="exercise-progress-sub">
           {exerciseActive ? `${expectedIndex + 1} / ${totalSteps}` : 'Ready'}
         </div>
+
+        {exerciseActive && expectedStep ? (
+          <div className="exercise-reference-row">
+            <button
+              className="exercise-btn exercise-btn-reference"
+              type="button"
+              onClick={() => void playExpectedNote()}
+              title="Plays the expected swara at your selected shruti (optional aid — don’t lean on it for every note)."
+            >
+              Play note
+            </button>
+            {referenceHint ? <p className="exercise-reference-hint">{referenceHint}</p> : null}
+          </div>
+        ) : null}
       </div>
 
       <div className="exercise-notation">
