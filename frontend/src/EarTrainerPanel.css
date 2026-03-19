@@ -151,12 +151,6 @@
   color: #bdbdbd;
 }
 
-.ear-quiz-idle {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-}
-
 .ear-quiz-phase {
   display: flex;
   flex-direction: column;
