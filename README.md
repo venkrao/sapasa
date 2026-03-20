@@ -52,12 +52,34 @@ The Python backend uses your system microphone:
 
 ## Currently supported
 
-- **Shruti selection**: choose Sa as any Western pitch (C .. B) from the top-right selector.
-- **Live pitch detection**: shows **Carnatic swara name** + **Western note name** + **cents** in the bottom panel.
-- **Scrolling pitch graph**:
-  - **3-octave viewport** that follows your voice (log-frequency scale)
-  - **Drag up/down** on the graph to reposition the viewport (auto-follow resumes after a short pause)
-  - **60s history** trace for gamaka / movement
+The app opens a **home screen** with two modules (both are early / learning-focused; data is limited on purpose).
+
+### Pitch Monitor (live microphone — requires the Python backend)
+
+- **Shruti**: header selector lists **Carnatic kattai** (½-kattai steps) with a Western note name and Hz; this sets **Sa** for both the JI grid and pitch matching.
+- **Live readout**:
+  - **Western note** (ET nearest semitone), **large and color-matched** to intonation, **centered in the header**.
+  - **Carnatic swara** (nearest JI swarasthana) + **cents** from that target + a short **in tune / sharp / flat** label in the **bottom** bar.
+- **Pitch graph**:
+  - **3-octave** log-frequency viewport that **tracks** your singing (median pitch over ~2s, smoothed); **large jumps or notes outside the frame snap / recenter** so the trace stays usable after manual panning.
+  - **Drag** vertically to pan; auto-follow pauses briefly after drag, or **resumes immediately** if you sing **outside** the current view (unless you are still holding the pointer).
+  - **~60s** scrolling history; grid shows Western chromatic lines with **Western names on the left** and **JI swara bands** with **Carnatic labels on the right**.
+- **Guided exercises** (sidebar): pick raga **Mayamalavagowla** (Adi tala today in data), then either:
+  - **Arohanam & Avarohanam** (generated from the raga’s scale), or
+  - **Sarali Varisai 1**, **Janta Varisai 1**, **Daatu Varisai 1**, **Melsthayi Varisai 1**, **Madhya Sthayi Varisai 1**, **Mandra Sthayi Varisai 1**, **Alankaram 1** (Dhruva talam).
+  - While an exercise runs, the graph can **emphasize the expected swara** and **dim** out-of-scale positions; matching advances when you **hold** the expected pitch within tolerance.
+  - Optional **Play note** plays a **reference tone** for the current expected swara (Tone.js in your browser) — matching is **ignored briefly** right after playback so speaker bleed doesn’t skip steps.
+
+### Ear Training (browser audio only — no Python)
+
+- **Swara keyboard** for the full **16-name** layout (including shared-pitch pairs like Ri2/Ga1); playback uses **JI ratios** from a chosen **base Sa** (presets from **C3** through **B3**, plus **C4** default).
+- **Note length** slider and **tone presets**: Veena-ish, Piano-ish, Guitar-ish, pure **sine**, **triangle** (all synthesized; **headphones recommended**).
+- **Quiz**: plays a random swara; you pick the answer; scoring counts **alias** names as correct where pitches coincide.
+
+### Scope / not here yet
+
+- **One raga** (`Mayamalavagowla`) and the exercises bundled with it — no other ragas in the catalog yet.
+- Pitch detection is **fundamental-only** (YIN on mono input); **no** separate tāla / rhythm tutor beyond what’s encoded in exercise notation.
 
 ## How it works
 
