@@ -304,6 +304,9 @@ export default function App() {
     <div className="app">
       <header className="header">
         <span className="app-name">SaPaSa</span>
+        {note
+          ? <span className="header-western" style={{ color: centsColor(note.cents) }}>{note.note}</span>
+          : <span className="header-western header-western-idle" />}
         <div className="header-controls">
           <button
             className={'listen-button ' + (listening ? 'on' : 'off')}
@@ -416,10 +419,7 @@ export default function App() {
             className="note-current"
             style={{ '--note-color': centsColor(note.cents) } as React.CSSProperties}
           >
-            <div className="note-identity">
-              <span className="note-swara">{note.swara}</span>
-              <span className="note-western">{note.note}</span>
-            </div>
+            <span className="note-swara">{note.swara}</span>
             <span className="note-cents">{formatCents(note.cents)}</span>
             <span className="note-label">{centsLabel(note.cents)}</span>
           </div>
