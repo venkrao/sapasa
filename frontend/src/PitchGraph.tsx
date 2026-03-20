@@ -12,7 +12,8 @@ const HALF_SPAN   = OCTAVE_SPAN / 2
 const WINDOW_MS      = 60_000  // trace history length
 const MEDIAN_WIN_MS  = 2_000   // window for scroll target median
 const SCROLL_EMA     = 0.08    // viewport smoothing (per-frame at 60fps)
-const JUMP_GUARD     = 300     // cents — viewport ignores larger jumps
+/** Above this distance from the viewport centre, snap instead of freezing (EMA only within guard). */
+const JUMP_GUARD     = 300     // cents
 
 // ── layout ────────────────────────────────────────────────────────────────────
 
@@ -176,6 +177,13 @@ export default function PitchGraph({
     canvas.addEventListener('pointerup',   onPointerUp)
     canvas.addEventListener('pointerleave', onPointerUp)
 
+    function clampDisplayCentre(hz: number): number {
+      return Math.max(
+        GRID_MIN_HZ * Math.pow(2, HALF_SPAN),
+        Math.min(GRID_MAX_HZ / Math.pow(2, HALF_SPAN), hz),
+      )
+    }
+
     function draw() {
       ctx.resetTransform()
       ctx.scale(dpr, dpr)
@@ -183,8 +191,13 @@ export default function PitchGraph({
       const now   = pausedRef.current ? (frozenNowRef.current ?? Date.now()) : Date.now()
       const plotW = W - LABEL_W - LABEL_R
 
+      // Viewport from last frame — used to detect “singing off screen” while pan paused
+      const centrePrev = displayCentreRef.current
+      const viewMinPrev = Math.max(GRID_MIN_HZ, centrePrev / Math.pow(2, HALF_SPAN))
+      const viewMaxPrev = Math.min(GRID_MAX_HZ, centrePrev * Math.pow(2, HALF_SPAN))
+
       // ── 1. Update display centre (skipped while user is dragging) ────────
-      if (!pausedRef.current && !autoScrollPaused.current) {
+      if (!pausedRef.current) {
         const recentFreqs = historyRef.current
           .filter(p => p.freq !== null && now - p.t <= MEDIAN_WIN_MS)
           .map(p => p.freq as number)
@@ -192,12 +205,32 @@ export default function PitchGraph({
 
         if (recentFreqs.length > 0) {
           const median = recentFreqs[Math.floor(recentFreqs.length / 2)]
-          const jump   = centsToHz(median, displayCentreRef.current)
-          if (jump <= JUMP_GUARD) {
-            displayCentreRef.current +=
-              SCROLL_EMA * (median - displayCentreRef.current)
+
+          // After a manual pan, resume follow as soon as the sung pitch is outside the frame
+          // (but not while the pointer is still down — avoid fighting drag).
+          if (
+            autoScrollPaused.current &&
+            !isDraggingRef.current &&
+            (median < viewMinPrev || median > viewMaxPrev)
+          ) {
+            autoScrollPaused.current = false
+            if (resumeTimerRef.current) {
+              clearTimeout(resumeTimerRef.current)
+              resumeTimerRef.current = null
+            }
           }
-          // jump > guard → hold position this frame
+
+          if (!autoScrollPaused.current) {
+            const jump = centsToHz(median, displayCentreRef.current)
+            if (jump <= JUMP_GUARD) {
+              displayCentreRef.current +=
+                SCROLL_EMA * (median - displayCentreRef.current)
+            } else {
+              // Large interval / octave jump: bring the note into view immediately
+              displayCentreRef.current = clampDisplayCentre(median)
+            }
+            displayCentreRef.current = clampDisplayCentre(displayCentreRef.current)
+          }
         }
         // silence → hold position (no update)
       }
