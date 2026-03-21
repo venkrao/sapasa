@@ -91,6 +91,99 @@
 .shruti-select:focus  { border-color: #444; }
 .shruti-select option { background: #111; color: #909090; }
 
+/* ── Tanpura drone strip (Pitch Monitor) ── */
+.tanpura-bar {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 8px 24px 10px;
+  border-bottom: 1px solid #141414;
+  background: linear-gradient(180deg, rgba(212, 175, 55, 0.04), transparent);
+}
+
+.tanpura-bar-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 18px;
+}
+
+.tanpura-toggle {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #d4bc7a;
+  background: #14110a;
+  border: 1px solid #3d3520;
+  border-radius: 8px;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+
+.tanpura-toggle:hover {
+  border-color: #5c5236;
+  color: #e8d9a8;
+}
+
+.tanpura-toggle-on {
+  border-color: #a68b3d;
+  box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.35);
+  animation: tanpura-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes tanpura-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.35); }
+  50%      { box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.12); }
+}
+
+.tanpura-pa {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #9ca3af;
+  cursor: pointer;
+}
+
+.tanpura-pa input {
+  accent-color: #d4bc7a;
+}
+
+.tanpura-vol {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  color: #6b7280;
+}
+
+.tanpura-vol-label {
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.tanpura-range {
+  width: 120px;
+  accent-color: #a68b3d;
+}
+
+.tanpura-vol-val {
+  font-variant-numeric: tabular-nums;
+  min-width: 3.2rem;
+  color: #9ca3af;
+}
+
+.tanpura-live {
+  flex: 1 1 100%;
+  font-size: 0.7rem;
+  color: #6b7280;
+  min-height: 1em;
+}
+
 /* ── Graph ── */
 .graph-container {
   flex: 1;

@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import PitchGraph from './PitchGraph'
 import { SA_HZ, SHRUTI_LIST, swaraHz } from './swaras'
 import ExercisePanel from './ExercisePanel'
+import TanpuraStrip from './TanpuraStrip'
 import { RAGAS, getExercise } from './exerciseCatalog'
 import { deriveFlatSequence } from './exerciseModel'
 import type { RagaDefinition, SequenceStep } from './exerciseModel'
@@ -120,6 +121,11 @@ export default function PitchMonitorScreen({ onHome }: Props) {
   const onGraphMount = useCallback((push: (freq: number | null) => void) => {
     graphPushRef.current = push
   }, [])
+
+  const shrutiSummary = useMemo(() => {
+    const s = SHRUTI_LIST.find(x => x.hz === saHz)
+    return s ? `${s.kattai} (${s.western})` : `${saHz.toFixed(2)} Hz`
+  }, [saHz])
 
   function sendShruti(ws: WebSocket, hz: number) {
     if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'set_shruti', sa_hz: hz }))
@@ -326,6 +332,8 @@ export default function PitchMonitorScreen({ onHome }: Props) {
           </select>
         </div>
       </header>
+
+      <TanpuraStrip saHz={saHz} shrutiSummary={shrutiSummary} />
 
       <div className="graph-container">
         <div className="graph-left">

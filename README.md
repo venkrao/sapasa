@@ -57,6 +57,7 @@ The app opens a **home screen** with two modules (both are early / learning-focu
 ### Pitch Monitor (live microphone — requires the Python backend)
 
 - **Shruti**: header selector lists **Carnatic kattai** (½-kattai steps) with a Western note name and Hz; this sets **Sa** for both the JI grid and pitch matching.
+- **Tanpura drone** (optional): synthesized rolling **JI Sa — Pa — Sa′** (Pa can be unchecked) under the header — tempo fixed at **40 BPM**, volume **−20…0 dB**, **Tone.js** + light reverb; ties to the selected shruti when you change it. Uses speakers — can interfere with the mic like any playback.
 - **Live readout**:
   - **Western note** (ET nearest semitone), **large and color-matched** to intonation, **centered in the header**.
   - **Carnatic swara** (nearest JI swarasthana) + **cents** from that target + a short **in tune / sharp / flat** label in the **bottom** bar.
