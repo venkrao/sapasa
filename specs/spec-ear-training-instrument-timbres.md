@@ -6,9 +6,8 @@ Each timbre is a self-contained synthesis strategy using the Web Audio API's nat
 
 | Timbre | Technique | Nodes Used |
 |---|---|---|
-| **Piano-ish** | Additive synthesis + fast decay | Multiple `OscillatorNode`s + `GainNode` |
-| **Guitar** | Karplus-Strong algorithm | `AudioBufferSourceNode` + `DelayNode` + `BiquadFilterNode` |
-| **Veena** | Additive synthesis + slow drone decay + slight detune | Multiple `OscillatorNode`s + `GainNode` + subtle `DelayNode` |
+| **Piano** | Multisampled Salamander grand (`@tonejs/piano`) via Tone.js | `Tone.Sampler`-style engine |
+| **Guitar** | Karplus-Strong–style pluck (`Tone.PluckSynth`) | `PluckSynth` + filter + gain |
 
 ***
 
@@ -43,21 +42,7 @@ Karplus-Strong generates a realistic plucked string from a short burst of white 
 
 **Limitation to note:** The Web Audio API `DelayNode` has a minimum delay of ~`128/sampleRate` (~3ms at 44.1kHz), which means frequencies below ~333Hz may not render accurately with this method. For lower shrutis (below C4), fall back to the additive piano synth automatically, or use `AudioWorklet` for full fidelity (out of scope for now). [youtube](https://www.youtube.com/watch?v=-3wJfyBSWNw)
 
-**Nylon vs steel string:** Apply a second `BiquadFilterNode(lowpass, ~800Hz)` after the loop output to roll off highs further — this makes it sound like nylon strings / more veena-adjacent. [luciopaiva](https://luciopaiva.com/karplus/)
-
-***
-
-## Veena-ish (Additive + Drone Character)
-
-The veena has a distinctive buzzy, sustained quality with slow decay and slight inharmonicity. It can be approximated with additive synthesis plus a few tweaks. [reddit](https://www.reddit.com/r/synthesizers/comments/byccdy/building_drone_sounds_in_webaudioapi/)
-
-**Algorithm:**
-1. Spawn 5 `OscillatorNode`s at harmonics `f × [1, 2, 3, 4, 5]`
-2. Add a very slight detuning to harmonics 2–5 (`detune: ±3–8 cents` randomly) to simulate the natural imperfection of a string
-3. Amplitude weights: `[1.0, 0.7, 0.5, 0.35, 0.2]` — more sustain in upper harmonics than piano
-4. Add a short `DelayNode` (5–10ms, feedback ~0.15) on the output to simulate the resonance box / kuzhal drone buzz
-5. Apply a `BiquadFilterNode(peaking, Q: 5, gain: +6dB)` at around `f × 2.7` to emphasise the characteristic veena mid-bark
-6. Long decay: `duration × 1.5` — veena notes ring much longer than piano
+**Nylon vs steel string:** Apply a second `BiquadFilterNode(lowpass, ~800Hz)` after the loop output to roll off highs further — this makes it sound more like nylon strings. [luciopaiva](https://luciopaiva.com/karplus/)
 
 ***
 
@@ -67,8 +52,7 @@ The current dropdown already has "Piano-ish (filtered)" and "Guitar-ish (filtere
 
 | Option label | Internal key |
 |---|---|
-| Veena-ish | `veena` |
-| Piano-ish | `piano` |
+| Piano | `piano` |
 | Guitar-ish | `guitar` |
 | Sine (pure) | `sine` |
 | Triangle | `triangle` |
@@ -81,4 +65,4 @@ Remove "Carnatic (triangle)", "Square", and "Sawtooth" — they are not musicall
 
 The `playSwara` function should be split into:
 - `playNote(frequencyHz: number, duration: number, timbre: Timbre, audioCtx: AudioContext)` — pure audio function, no React state
-- One named function per timbre: `playPiano()`, `playGuitar()`, `playVeena()`, each with the same signature
+- One named function per timbre: `playPiano()`, `playGuitar()`, etc., each with the same signature

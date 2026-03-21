@@ -94,7 +94,7 @@ export default function EarTrainerPanel() {
   const [noteDurationSec, setNoteDurationSec] = useState(1.5)
   const [activeSwara, setActiveSwara] = useState<string | null>(null)
   const [lastPlayedHz, setLastPlayedHz] = useState<number | null>(null)
-  const [tonePreset, setTonePreset] = useState<TonePreset>('veena')
+  const [tonePreset, setTonePreset] = useState<TonePreset>('piano')
 
   const audioEngineRef = useRef<EarTrainerAudioEngine | null>(null)
   const activeResetTimerRef = useRef<number | null>(null)
@@ -262,8 +262,7 @@ export default function EarTrainerPanel() {
               value={tonePreset}
               onChange={e => setTonePreset(e.target.value as TonePreset)}
             >
-              <option value="veena">Veena-ish</option>
-              <option value="piano">Piano-ish</option>
+              <option value="piano">Piano</option>
               <option value="guitar">Guitar-ish</option>
               <option value="sine">Sine (pure)</option>
               <option value="triangle">Triangle</option>

@@ -74,7 +74,7 @@ The app opens a **home screen** with two modules (both are early / learning-focu
 ### Ear Training (browser audio only — no Python)
 
 - **Swara keyboard** for the full **16-name** layout (including shared-pitch pairs like Ri2/Ga1); playback uses **JI ratios** from a chosen **base Sa** (presets from **C3** through **B3**, plus **C4** default).
-- **Note length** slider and **tone presets**: Veena-ish, Piano-ish, Guitar-ish, pure **sine**, **triangle** (all synthesized; **headphones recommended**).
+- **Note length** slider and **tone presets**: **Piano** (multisampled via `@tonejs/piano`), **Guitar-ish**, pure **sine**, **triangle**; **headphones recommended** for quiz.
 - **Quiz**: plays a random swara; you pick the answer; scoring counts **alias** names as correct where pitches coincide.
 
 ### Scope / not here yet

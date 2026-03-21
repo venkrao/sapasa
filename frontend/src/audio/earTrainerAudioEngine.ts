@@ -1,6 +1,7 @@
+import { Piano } from '@tonejs/piano/build/piano/Piano'
 import * as Tone from 'tone'
 
-export type TonePreset = 'veena' | 'piano' | 'guitar' | 'sine' | 'triangle'
+export type TonePreset = 'piano' | 'guitar' | 'sine' | 'triangle'
 
 type ActiveHandle = {
   dispose: () => void
@@ -9,20 +10,27 @@ type ActiveHandle = {
 
 export class EarTrainerAudioEngine {
   private active: ActiveHandle | null = null
+  private piano: Piano | null = null
+  private pianoLoadPromise: Promise<void> | null = null
 
   async ensureStarted() {
     await Tone.start()
   }
 
   stop() {
-    if (!this.active) return
-    window.clearTimeout(this.active.timeoutId)
-    this.active.dispose()
-    this.active = null
+    if (this.active) {
+      window.clearTimeout(this.active.timeoutId)
+      this.active.dispose()
+      this.active = null
+    }
+    this.piano?.stopAll()
   }
 
   dispose() {
     this.stop()
+    this.piano?.dispose()
+    this.piano = null
+    this.pianoLoadPromise = null
   }
 
   async playNote(frequencyHz: number, durationSec: number, timbre: TonePreset) {
@@ -36,10 +44,7 @@ export class EarTrainerAudioEngine {
         this.playGuitar(frequencyHz, dur)
         return
       case 'piano':
-        this.playPiano(frequencyHz, dur)
-        return
-      case 'veena':
-        this.playVeena(frequencyHz, dur)
+        await this.playPiano(frequencyHz, dur)
         return
       case 'sine':
         this.playSimpleWave(frequencyHz, dur, 'sine', -12)
@@ -99,7 +104,42 @@ export class EarTrainerAudioEngine {
     this.registerActive(() => synth.dispose(), durationSec + 0.3)
   }
 
-  private playPiano(frequencyHz: number, durationSec: number) {
+  private async playPiano(frequencyHz: number, durationSec: number) {
+    try {
+      const piano = await this.ensurePiano()
+      const midi = this.frequencyToMidi(frequencyHz)
+      piano.keyDown({ midi, velocity: 0.9 })
+
+      this.registerActive(() => {
+        piano.keyUp({ midi })
+      }, durationSec + 0.15)
+      return
+    } catch {
+      // Fallback keeps behavior intact if the external sampler fails at runtime.
+      this.playPianoFallback(frequencyHz, durationSec)
+    }
+  }
+
+  private async ensurePiano(): Promise<Piano> {
+    if (!this.piano) {
+      this.piano = new Piano({ velocities: 4, pedal: false, release: true }).toDestination()
+      this.pianoLoadPromise = this.piano.load()
+    }
+
+    if (this.pianoLoadPromise) {
+      await this.pianoLoadPromise
+      this.pianoLoadPromise = null
+    }
+
+    return this.piano
+  }
+
+  private frequencyToMidi(frequencyHz: number): number {
+    const raw = 69 + 12 * Math.log2(frequencyHz / 440)
+    return Math.max(21, Math.min(108, Math.round(raw)))
+  }
+
+  private playPianoFallback(frequencyHz: number, durationSec: number) {
     const synth = new Tone.PolySynth(Tone.Synth, {
       oscillator: { type: 'triangle' },
       envelope: { attack: 0.008, decay: 0.25, sustain: 0, release: 0.25 },
@@ -121,30 +161,6 @@ export class EarTrainerAudioEngine {
         gain.dispose()
       },
       durationSec + 0.35,
-    )
-  }
-
-  private playVeena(frequencyHz: number, durationSec: number) {
-    const synth = new Tone.MonoSynth({
-      oscillator: { type: 'sawtooth' },
-      filter: { type: 'lowpass', frequency: Math.min(2800, frequencyHz * 3), Q: 1.1 },
-      envelope: { attack: 0.015, decay: 0.4, sustain: 0.12, release: 0.45 },
-      filterEnvelope: { attack: 0.02, decay: 0.24, sustain: 0.15, release: 0.4, baseFrequency: frequencyHz },
-      volume: -12,
-    })
-    const ping = new Tone.FeedbackDelay({ delayTime: 0.008, feedback: 0.12, wet: 0.18 })
-    const gain = new Tone.Gain(0.7).toDestination()
-    synth.connect(ping)
-    ping.connect(gain)
-    synth.triggerAttackRelease(frequencyHz, durationSec * 1.2)
-
-    this.registerActive(
-      () => {
-        synth.dispose()
-        ping.dispose()
-        gain.dispose()
-      },
-      durationSec * 1.2 + 0.4,
     )
   }
 

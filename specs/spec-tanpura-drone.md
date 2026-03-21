@@ -14,7 +14,7 @@ npm install tone
 ```
 
 The existing raw `AudioContext` used for swara playback should be replaced or unified with Tone.js's internal context (`Tone.getContext()`). This avoids running two separate audio contexts simultaneously, which causes drift and browser warnings. Specifically:
-- Migrate `playPiano()`, `playGuitar()`, `playVeena()` to use `Tone.Synth` / `Tone.PolySynth` equivalents, or
+- Migrate `playPiano()`, `playGuitar()`, etc. to use `Tone.Synth` / `Tone.PolySynth` equivalents, or
 - Keep the raw Web Audio API synths but connect them into Tone's context via `Tone.context.rawContext`
 
 Either approach is valid; the second is lower-risk if the existing synths already work well.
