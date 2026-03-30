@@ -149,6 +149,29 @@
   gap: 8px;
 }
 
+.exercise-reference-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.exercise-tone-select {
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: #7a9ec4;
+  background: #0d1c2e;
+  border: 1px solid #1e3a5f;
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+}
+
+.exercise-tone-select:hover { border-color: #285896; }
+.exercise-tone-select:focus { border-color: #3b7ec8; }
+.exercise-tone-select option { background: #0d1c2e; color: #7a9ec4; }
+
 .exercise-btn-reference {
   font-size: 0.75rem;
   padding: 5px 10px;

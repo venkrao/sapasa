@@ -263,9 +263,7 @@ export default function EarTrainerPanel() {
               onChange={e => setTonePreset(e.target.value as TonePreset)}
             >
               <option value="piano">Piano</option>
-              <option value="guitar">Guitar-ish</option>
               <option value="sine">Sine (pure)</option>
-              <option value="triangle">Triangle</option>
             </select>
             {quizPhase === 'idle' ? (
               <button

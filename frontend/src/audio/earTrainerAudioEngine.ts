@@ -1,7 +1,7 @@
 import { Piano } from '@tonejs/piano/build/piano/Piano'
 import * as Tone from 'tone'
 
-export type TonePreset = 'piano' | 'guitar' | 'sine' | 'triangle'
+export type TonePreset = 'piano' | 'sine'
 
 type ActiveHandle = {
   dispose: () => void
@@ -40,18 +40,12 @@ export class EarTrainerAudioEngine {
     const dur = Math.max(0.08, durationSec)
 
     switch (timbre) {
-      case 'guitar':
-        this.playGuitar(frequencyHz, dur)
-        return
       case 'piano':
         await this.playPiano(frequencyHz, dur)
         return
       case 'sine':
-        this.playSimpleWave(frequencyHz, dur, 'sine', -12)
-        return
-      case 'triangle':
       default:
-        this.playSimpleWave(frequencyHz, dur, 'triangle', -10)
+        this.playSimpleWave(frequencyHz, dur, -6)
         return
     }
   }
@@ -91,17 +85,18 @@ export class EarTrainerAudioEngine {
   private playSimpleWave(
     frequencyHz: number,
     durationSec: number,
-    oscillatorType: 'sine' | 'triangle',
     volumeDb: number,
   ) {
     const synth = new Tone.Synth({
-      oscillator: { type: oscillatorType },
-      envelope: { attack: 0.02, decay: 0.14, sustain: 0.12, release: 0.2 },
+      oscillator: { type: 'sine' },
+      // sustain at 0.75 keeps the note clearly audible through the full duration;
+      // 0.12 was nearly silent (-30 dB) and inaudible at short durations
+      envelope: { attack: 0.02, decay: 0.1, sustain: 0.75, release: 0.25 },
       volume: volumeDb,
     }).toDestination()
     synth.triggerAttackRelease(frequencyHz, durationSec)
 
-    this.registerActive(() => synth.dispose(), durationSec + 0.3)
+    this.registerActive(() => synth.dispose(), durationSec + 0.4)
   }
 
   private async playPiano(frequencyHz: number, durationSec: number) {
@@ -164,34 +159,5 @@ export class EarTrainerAudioEngine {
     )
   }
 
-  private playGuitar(frequencyHz: number, durationSec: number) {
-    const pluck = new Tone.PluckSynth({
-      attackNoise: 0.7,
-      dampening: Math.min(4200, Math.max(1600, frequencyHz * 5.8)),
-      resonance: 0.8,
-      volume: -10,
-    })
-    const lowpass = new Tone.Filter({ type: 'lowpass', frequency: Math.min(2300, Math.max(1000, frequencyHz * 3.1)), Q: 0.65 })
-    const gain = new Tone.Gain(0.68).toDestination()
-    pluck.connect(lowpass)
-    lowpass.connect(gain)
-
-    pluck.triggerAttack(frequencyHz)
-
-    // Fade output to avoid abrupt ring artifacts.
-    const now = Tone.now()
-    gain.gain.cancelScheduledValues(now)
-    gain.gain.setValueAtTime(0.68, now)
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + durationSec * 1.05)
-
-    this.registerActive(
-      () => {
-        pluck.dispose()
-        lowpass.dispose()
-        gain.dispose()
-      },
-      durationSec * 1.2 + 0.3,
-    )
-  }
 }
 

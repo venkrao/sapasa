@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import './ExercisePanel.css'
-import { EarTrainerAudioEngine } from './audio/earTrainerAudioEngine'
+import { EarTrainerAudioEngine, type TonePreset } from './audio/earTrainerAudioEngine'
 import { sequenceStepHz, type ExercisePhrase, type SequenceStep } from './exerciseModel'
 
 export type Option = { id: string; label: string }
@@ -38,7 +38,7 @@ export type ExercisePanelProps = {
 }
 
 /** Playback length passed to the synth — keep in sync with `playExpectedNote`. */
-const REFERENCE_NOTE_DURATION_SEC = 0.55
+const REFERENCE_NOTE_DURATION_SEC = 1.0
 
 const SWARA_TO_NOTATION: Record<string, string> = {
   Sa: 'S',
@@ -98,6 +98,7 @@ export default function ExercisePanel({
   const playsThisStepRef = useRef(0)
   const sessionPlaysRef = useRef(0)
   const [referenceHint, setReferenceHint] = useState<string | null>(null)
+  const [tonePreset, setTonePreset] = useState<TonePreset>('piano')
 
   useEffect(() => {
     return () => {
@@ -130,7 +131,7 @@ export default function ExercisePanel({
     onReferencePlaybackStart?.(suppressMs)
 
     const hz = sequenceStepHz(expectedStep, saHz)
-    await audioRef.current.playNote(hz, REFERENCE_NOTE_DURATION_SEC, 'sine')
+    await audioRef.current.playNote(hz, REFERENCE_NOTE_DURATION_SEC, tonePreset)
 
     const perStep = playsThisStepRef.current
     const session = sessionPlaysRef.current
@@ -148,7 +149,7 @@ export default function ExercisePanel({
     }
 
     setReferenceHint(hint)
-  }, [exerciseActive, expectedStep, onReferencePlaybackStart, saHz, totalSteps])
+  }, [exerciseActive, expectedStep, onReferencePlaybackStart, saHz, tonePreset, totalSteps])
 
   const ragaLabel =
     ragaOptions.find(r => r.id === selectedRagaId)?.label ??
@@ -234,14 +235,25 @@ export default function ExercisePanel({
 
         {exerciseActive && expectedStep ? (
           <div className="exercise-reference-row">
-            <button
-              className="exercise-btn exercise-btn-reference"
-              type="button"
-              onClick={() => void playExpectedNote()}
-              title="Plays the expected swara at your selected shruti (optional aid — don’t lean on it for every note)."
-            >
-              Play note
-            </button>
+            <div className="exercise-reference-controls">
+              <button
+                className="exercise-btn exercise-btn-reference"
+                type="button"
+                onClick={() => void playExpectedNote()}
+                title="Plays the expected swara at your selected shruti (optional aid — don’t lean on it for every note)."
+              >
+                Play note
+              </button>
+              <select
+                className="exercise-tone-select"
+                value={tonePreset}
+                onChange={e => setTonePreset(e.target.value as TonePreset)}
+                title="Sound for the reference note"
+              >
+                <option value="piano">Piano</option>
+                <option value="sine">Sine</option>
+              </select>
+            </div>
             {referenceHint ? <p className="exercise-reference-hint">{referenceHint}</p> : null}
           </div>
         ) : null}
