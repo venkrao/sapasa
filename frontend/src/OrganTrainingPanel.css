@@ -1,0 +1,270 @@
+.organ-panel {
+  flex-shrink: 0;
+  width: 360px;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid #161616;
+  background: #0c0c0c;
+  overflow-y: auto;
+}
+
+.organ-panel-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 16px;
+}
+
+.organ-section-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #404040;
+  text-transform: uppercase;
+}
+
+.organ-select {
+  width: 100%;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: #d4d4d8;
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+}
+
+.organ-select:hover  { border-color: #3a3a3a; }
+.organ-select:focus  { border-color: #4a4a4a; }
+.organ-select option { background: #111; color: #d4d4d8; }
+
+.organ-panel-hint {
+  font-size: 0.82rem;
+  color: #404040;
+  line-height: 1.5;
+}
+
+/* ── Selected organ detail ── */
+.organ-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.organ-detail-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #e5e5e5;
+  letter-spacing: -0.01em;
+}
+
+.organ-detail-emoji {
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.organ-detail-role {
+  font-size: 0.84rem;
+  color: #a3a3a3;
+  line-height: 1.55;
+}
+
+.organ-detail-block-text {
+  font-size: 0.82rem;
+  color: #808080;
+  line-height: 1.55;
+}
+
+/* ── Disclosure (collapsible section) ── */
+.organ-disclosure {
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.05);
+  overflow: hidden;
+}
+
+.organ-disclosure-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 12px;
+  background: rgba(255,255,255,0.025);
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  text-align: left;
+  gap: 8px;
+}
+
+.organ-disclosure-trigger:hover {
+  background: rgba(255,255,255,0.04);
+}
+
+.organ-disclosure-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #525252;
+}
+
+.organ-disclosure-chevron {
+  font-size: 1rem;
+  color: #404040;
+  line-height: 1;
+  transform: rotate(0deg);
+  transition: transform 150ms ease;
+  flex-shrink: 0;
+}
+
+.organ-disclosure-chevron.open {
+  transform: rotate(90deg);
+}
+
+.organ-disclosure-body {
+  padding: 10px 12px 12px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+/* ── Exercises section ── */
+.organ-exercises {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.organ-exercises-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #525252;
+  padding-bottom: 2px;
+}
+
+.organ-exercises-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #606060;
+  letter-spacing: 0;
+}
+
+/* Each exercise is a collapsible card */
+.organ-exercise-card {
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.05);
+  overflow: hidden;
+}
+
+.organ-exercise-card.open {
+  border-color: rgba(255,255,255,0.09);
+}
+
+.organ-exercise-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.02);
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  text-align: left;
+}
+
+.organ-exercise-card.open .organ-exercise-trigger {
+  background: rgba(255,255,255,0.035);
+}
+
+.organ-exercise-trigger:hover {
+  background: rgba(255,255,255,0.045);
+}
+
+.organ-exercise-name {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #c8c8c8;
+  line-height: 1.3;
+  flex: 1;
+}
+
+.organ-exercise-trigger-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.organ-exercise-badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 20px;
+}
+
+.organ-exercise-badge-beginner {
+  background: rgba(74, 222, 128, 0.1);
+  color: #4ade80;
+  border: 1px solid rgba(74, 222, 128, 0.18);
+}
+
+.organ-exercise-badge-intermediate {
+  background: rgba(251, 191, 36, 0.1);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.18);
+}
+
+.organ-exercise-badge-advanced {
+  background: rgba(248, 113, 113, 0.1);
+  color: #f87171;
+  border: 1px solid rgba(248, 113, 113, 0.18);
+}
+
+.organ-exercise-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+.organ-exercise-desc {
+  font-size: 0.81rem;
+  color: #7a7a7a;
+  line-height: 1.6;
+}
+
+.organ-exercise-duration {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.74rem;
+  color: #4ade80;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.organ-exercise-duration-icon {
+  font-size: 0.78rem;
+}

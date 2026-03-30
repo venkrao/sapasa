@@ -3,9 +3,10 @@ import './HomeScreen.css'
 type Props = {
   onChoosePitch: () => void
   onChooseEar: () => void
+  onChooseOrgan: () => void
 }
 
-export default function HomeScreen({ onChoosePitch, onChooseEar }: Props) {
+export default function HomeScreen({ onChoosePitch, onChooseEar, onChooseOrgan }: Props) {
   return (
     <div className="app home-screen">
       <header className="header">
@@ -39,6 +40,19 @@ export default function HomeScreen({ onChoosePitch, onChooseEar }: Props) {
             <div className="home-card-title">Ear Training</div>
             <div className="home-card-desc">
               Click swaras to synthesize tones and improve your intonation.
+            </div>
+            <div className="home-card-cta">Open</div>
+          </button>
+
+          <button
+            type="button"
+            className="home-card home-card-organ"
+            onClick={onChooseOrgan}
+            aria-label="Open organ-specific training module"
+          >
+            <div className="home-card-title">Organ Training</div>
+            <div className="home-card-desc">
+              Exercises for the physical organs of singing — breath, folds, palate, and more.
             </div>
             <div className="home-card-cta">Open</div>
           </button>
