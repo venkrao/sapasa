@@ -22,11 +22,11 @@ export default function HomeScreen({ onChoosePitch, onChooseEar, onChooseOrgan }
             type="button"
             className="home-card home-card-pitch"
             onClick={onChoosePitch}
-            aria-label="Open pitch monitor and exercise"
+            aria-label="Open Carnatic training module"
           >
-            <div className="home-card-title">Pitch Monitor</div>
+            <div className="home-card-title">Carnatic Training</div>
             <div className="home-card-desc">
-              Listen and practice Carnatic phrases using live pitch detection.
+              Sing Carnatic phrases and varisai exercises with live pitch tracking and swara guidance.
             </div>
             <div className="home-card-cta">Open</div>
           </button>
