@@ -2,3 +2,5 @@ fastapi
 uvicorn[standard]
 sounddevice
 numpy
+# aubio 0.5.0a0 (git HEAD) — required for Python 3.13+ / numpy 2.x compatibility.
+# Install with: pip install git+https://github.com/aubio/aubio.git

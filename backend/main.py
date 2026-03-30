@@ -3,9 +3,11 @@ import json
 import math
 import queue
 import threading
+from collections import deque
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
+import aubio
 import numpy as np
 import sounddevice as sd
 import uvicorn
@@ -15,15 +17,26 @@ from fastapi.middleware.cors import CORSMiddleware
 import carnatic_engine
 
 SAMPLE_RATE = 44100
-BLOCK_SIZE = 512       # ~11 ms per audio callback
-WINDOW_SIZE = 2048     # YIN analysis window (~46 ms)
-PROCESS_HOP = 512      # re-run YIN every ~11 ms
+BLOCK_SIZE  = 512   # hop size: new samples per audio callback (~11 ms)
+WINDOW_SIZE = 2048  # aubio analysis window (~46 ms)
 
-CONFIDENCE_THRESHOLD = 0.30
-RMS_SILENCE = 0.002    # discard below this amplitude
-MIN_FREQ = 80.0        # ~E2 — covers most vocal ranges
-MAX_FREQ = 1200.0      # ~D6
-EMA_ALPHA = 0.15       # exponential smoothing — lower = smoother but more lag
+MIN_FREQ = 80.0    # ~E2 — covers most vocal ranges
+MAX_FREQ = 1200.0  # ~D6
+
+# Silence gate: aubio returns freq=0 for frames below this dBFS level.
+SILENCE_DB = -60.0
+
+# Minimum confidence for the yin detector to accept a frame.
+# yin (unlike yinfft) reports meaningful confidence: ~0.85-0.99 for clean
+# voiced frames, much lower for sub-harmonic or transient errors.
+CONFIDENCE_THRESHOLD = 0.8
+
+# Median filter window — outlier frames cannot move the median.
+MEDIAN_SIZE = 5
+
+# How many consecutive rejected frames before we declare silence and clear
+# the buffer.  Bridges brief dropouts without creating gaps in the trace.
+SILENCE_HOLD_FRAMES = 10   # ~110 ms at 11 ms/hop
 
 _NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
@@ -55,74 +68,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── aubio pitch detector ──────────────────────────────────────────────────────
+# Using "yin" rather than "yinfft": get_confidence() is functional for yin
+# (yinfft always returns 0.0 in this release), giving us a proper per-frame
+# quality gate to reject sub-harmonic and transient errors before they enter
+# the median buffer.
+_pitch_o = aubio.pitch("yin", WINDOW_SIZE, BLOCK_SIZE, SAMPLE_RATE)
+_pitch_o.set_unit("Hz")
+_pitch_o.set_silence(SILENCE_DB)
+
 # ── Shared state ──────────────────────────────────────────────────────────────
-_rolling_buffer: np.ndarray = np.zeros(WINDOW_SIZE, dtype=np.float32)
 _audio_queue: queue.Queue[np.ndarray] = queue.Queue(maxsize=64)
 _latest_event: dict = {"status": "idle"}
 _event_lock = threading.Lock()
-_ema_freq: float | None = None  # smoothed frequency, reset on silence
-
-
-# ── YIN pitch detector (pure numpy) ──────────────────────────────────────────
-
-def _yin_pitch(
-    audio: np.ndarray,
-    sr: int,
-    min_freq: float = MIN_FREQ,
-    max_freq: float = MAX_FREQ,
-    threshold: float = 0.15,
-) -> tuple[float, float]:
-    """Return (frequency_hz, confidence) using the YIN algorithm.
-
-    confidence is 1 − aperiodicity; higher = more certain it's a pitched sound.
-    """
-    n = len(audio)
-    tau_min = max(2, int(sr / max_freq))
-    tau_max = min(n // 2, int(sr / min_freq) + 1)
-    if tau_max <= tau_min:
-        return 0.0, 0.0
-
-    # Step 1 + 2: difference function and cumulative mean normalised difference
-    diff = np.empty(tau_max, dtype=np.float64)
-    diff[0] = 0.0
-    for tau in range(1, tau_max):
-        d = audio[: n - tau].astype(np.float64) - audio[tau:].astype(np.float64)
-        diff[tau] = float(np.dot(d, d))
-
-    cmnd = np.empty(tau_max, dtype=np.float64)
-    cmnd[0] = 1.0
-    cumsum = np.cumsum(diff)
-    taus = np.arange(tau_max, dtype=np.float64)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        cmnd[1:] = np.where(
-            cumsum[1:] > 0,
-            diff[1:] * taus[1:] / cumsum[1:],
-            1.0,
-        )
-
-    # Step 3: first tau below the absolute threshold
-    tau_est = -1
-    for tau in range(tau_min, tau_max - 1):
-        if cmnd[tau] < threshold:
-            while tau + 1 < tau_max and cmnd[tau + 1] < cmnd[tau]:
-                tau += 1
-            tau_est = tau
-            break
-
-    if tau_est == -1:
-        tau_est = tau_min + int(np.argmin(cmnd[tau_min:tau_max]))
-
-    # Step 4: parabolic interpolation for sub-sample accuracy
-    if 0 < tau_est < tau_max - 1:
-        s0, s1, s2 = cmnd[tau_est - 1], cmnd[tau_est], cmnd[tau_est + 1]
-        denom = 2.0 * (2.0 * s1 - s2 - s0)
-        tau_refined = tau_est + (s2 - s0) / denom if abs(denom) > 1e-9 else tau_est
-    else:
-        tau_refined = float(tau_est)
-
-    freq = sr / tau_refined if tau_refined > 0 else 0.0
-    confidence = max(0.0, 1.0 - float(cmnd[tau_est]))
-    return freq, confidence
+_freq_buffer: deque[float] = deque(maxlen=MEDIAN_SIZE)
+_silence_count: int = 0
 
 
 # ── Music logic ───────────────────────────────────────────────────────────────
@@ -138,8 +98,7 @@ def _nearest_note(freq: float) -> str:
 # ── Audio processing thread ───────────────────────────────────────────────────
 
 def _process_audio() -> None:
-    global _rolling_buffer, _latest_event, _ema_freq
-    samples_since_process = 0
+    global _latest_event, _silence_count
 
     while True:
         try:
@@ -147,39 +106,34 @@ def _process_audio() -> None:
         except queue.Empty:
             continue
 
-        n = len(chunk)
-        _rolling_buffer = np.roll(_rolling_buffer, -n)
-        _rolling_buffer[-n:] = chunk
-        samples_since_process += n
+        freq       = float(_pitch_o(chunk)[0])
+        confidence = float(_pitch_o.get_confidence())
 
-        if samples_since_process < PROCESS_HOP:
-            continue
-        samples_since_process = 0
+        if freq > 0.0 and confidence >= CONFIDENCE_THRESHOLD and MIN_FREQ <= freq <= MAX_FREQ:
+            _silence_count = 0
+            _freq_buffer.append(freq)
 
-        rms = float(np.sqrt(np.mean(_rolling_buffer ** 2)))
-        if rms < RMS_SILENCE:
-            _ema_freq = None
-            event: dict = {"status": "idle"}
+            # Emit as soon as we have any reading — no warmup wait.
+            smoothed           = sorted(_freq_buffer)[len(_freq_buffer) // 2]
+            note               = _nearest_note(smoothed)
+            _, swara, cents_ji = carnatic_engine.nearest_swara(smoothed, carnatic_engine.FREQ_MAP)
+            event: dict = {
+                "status": "note",
+                "note":   note,
+                "swara":  swara,
+                "cents":  cents_ji,
+                "freq":   round(smoothed, 1),
+            }
         else:
-            freq, confidence = _yin_pitch(_rolling_buffer, SAMPLE_RATE)
-            if confidence >= CONFIDENCE_THRESHOLD and MIN_FREQ <= freq <= MAX_FREQ:
-                # Apply EMA smoothing to reduce jitter; reset when a new note starts
-                if _ema_freq is None:
-                    _ema_freq = freq
-                else:
-                    _ema_freq = EMA_ALPHA * freq + (1.0 - EMA_ALPHA) * _ema_freq
-                note               = _nearest_note(_ema_freq)
-                _, swara, cents_ji = carnatic_engine.nearest_swara(_ema_freq, carnatic_engine.FREQ_MAP)
-                event = {
-                    "status": "note",
-                    "note":   note,       # nearest Western ET semitone, e.g. "D#3"
-                    "swara":  swara,      # nearest Carnatic swarasthana, e.g. "Sa"
-                    "cents":  cents_ji,   # deviation from JI target
-                    "freq":   round(_ema_freq, 1),
-                }
-            else:
-                _ema_freq = None
+            _silence_count += 1
+            if _silence_count >= SILENCE_HOLD_FRAMES:
+                # Sustained silence — clear buffer so the next note starts fresh.
+                _freq_buffer.clear()
                 event = {"status": "idle"}
+            else:
+                # Brief dropout (single bad frame, breath noise) — hold last event.
+                with _event_lock:
+                    event = dict(_latest_event)
 
         with _event_lock:
             _latest_event = event
@@ -193,9 +147,8 @@ def _audio_callback(indata: np.ndarray, frames: int, time_info, status) -> None:
 
 
 def _apply_shruti(hz: float) -> None:
-    global _ema_freq
     carnatic_engine.set_sa_hz(hz)
-    _ema_freq = None   # reset smoothing so next note re-anchors to new shruti
+    _freq_buffer.clear()  # reset smoothing so next note re-anchors to new shruti
 
 
 @app.websocket("/ws")
