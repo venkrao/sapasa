@@ -15,6 +15,155 @@
   padding: 18px 16px;
 }
 
+/* ── Breath hold timer ── */
+.organ-timer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 14px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.organ-timer-display {
+  font-size: 2.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: #e5e5e5;
+}
+
+.organ-timer-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.organ-timer-btn {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 6px 20px;
+  border-radius: 8px;
+  border: 1px solid;
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms;
+}
+
+.organ-timer-btn-start {
+  background: rgba(74, 222, 128, 0.12);
+  border-color: rgba(74, 222, 128, 0.3);
+  color: #4ade80;
+}
+
+.organ-timer-btn-start:hover {
+  background: rgba(74, 222, 128, 0.2);
+}
+
+.organ-timer-btn-stop {
+  background: rgba(248, 113, 113, 0.12);
+  border-color: rgba(248, 113, 113, 0.3);
+  color: #f87171;
+}
+
+.organ-timer-btn-stop:hover {
+  background: rgba(248, 113, 113, 0.2);
+}
+
+.organ-timer-history {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.organ-timer-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.organ-timer-history-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #404040;
+}
+
+.organ-timer-history-clear {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #525252;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 5px;
+  padding: 2px 8px;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+}
+
+.organ-timer-history-clear:hover {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.25);
+}
+
+.organ-timer-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.organ-timer-history-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.02);
+}
+
+.organ-timer-history-item.latest {
+  background: rgba(74, 222, 128, 0.06);
+}
+
+.organ-timer-history-index {
+  font-size: 0.68rem;
+  color: #404040;
+  font-variant-numeric: tabular-nums;
+  min-width: 22px;
+}
+
+.organ-timer-history-value {
+  font-size: 0.88rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  color: #a3a3a3;
+  flex: 1;
+}
+
+.organ-timer-history-item.latest .organ-timer-history-value {
+  color: #4ade80;
+}
+
+.organ-timer-history-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #4ade80;
+  opacity: 0.7;
+}
+
+/* ── ── */
+
 .organ-section-label {
   font-size: 0.68rem;
   font-weight: 700;
@@ -130,6 +279,156 @@
 .organ-disclosure-body {
   padding: 10px 12px 12px;
   border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+/* ── Breath essentials (“the only 5 you need”) — collapsible, cyan accent ── */
+.organ-breath-disclosure-wrap {
+  margin-top: 2px;
+}
+
+.organ-breath-disclosure-wrap .organ-disclosure {
+  border-radius: 12px;
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  background: linear-gradient(165deg, rgba(14, 165, 233, 0.08), rgba(15, 23, 42, 0.45));
+  overflow: hidden;
+}
+
+.organ-breath-disclosure-wrap .organ-disclosure-trigger {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.organ-breath-disclosure-wrap .organ-disclosure-trigger:hover {
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.organ-breath-disclosure-wrap .organ-disclosure-label {
+  color: #7dd3fc;
+}
+
+.organ-breath-disclosure-wrap .organ-disclosure-chevron {
+  color: #38bdf8;
+}
+
+.organ-breath-disclosure-wrap .organ-disclosure-body {
+  border-top: 1px solid rgba(56, 189, 248, 0.15);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.organ-breath-essentials-lede {
+  margin: 0 0 2px;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: #94a3b8;
+}
+
+.organ-breath-essentials-list {
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.organ-breath-essential-item {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.organ-breath-essential-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.organ-breath-essential-num {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  background: rgba(56, 189, 248, 0.15);
+  color: #7dd3fc;
+}
+
+.organ-breath-essential-title {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #cbd5e1;
+  line-height: 1.35;
+}
+
+.organ-breath-how {
+  margin: 10px 0 0 32px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(56, 189, 248, 0.06);
+  border: 1px solid rgba(56, 189, 248, 0.12);
+}
+
+.organ-breath-how-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+}
+
+.organ-breath-how-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.organ-breath-how-channel {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #7dd3fc;
+}
+
+.organ-breath-how-why {
+  margin: 6px 0 0;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: #94a3b8;
+}
+
+.organ-breath-essential-body {
+  margin: 8px 0 0 32px;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: #94a3b8;
+}
+
+.organ-breath-essential-source {
+  display: inline-block;
+  margin: 8px 0 0 32px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #38bdf8;
+  text-decoration: none;
+}
+
+.organ-breath-essential-source:hover {
+  text-decoration: underline;
+}
+
+.organ-breath-essentials-summary {
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid rgba(56, 189, 248, 0.15);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #bae6fd;
 }
 
 /* ── Exercises section ── */
