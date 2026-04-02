@@ -111,6 +111,74 @@
   color: #6b7280;
 }
 
+.exercise-btn-sing {
+  color: #86efac;
+  border-color: #14532d;
+}
+.exercise-btn-sing:hover:not(:disabled) { border-color: #166534; }
+
+.exercise-btn-autoplay {
+  color: #fbbf24;
+  border-color: #78350f;
+}
+.exercise-btn-autoplay:hover:not(:disabled) { border-color: #92400e; }
+
+.exercise-autoplay-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.exercise-tempo-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid #222;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.exercise-tempo-step-btn {
+  background: #111;
+  border: none;
+  color: #bdbdbd;
+  font-size: 1rem;
+  font-weight: 700;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: background 0.1s, color 0.1s;
+}
+
+.exercise-tempo-step-btn:hover {
+  background: #1a1a1a;
+  color: #fbbf24;
+}
+
+.exercise-tempo-value {
+  min-width: 68px;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #e5e5e5;
+  background: #0d0d0d;
+  padding: 0 4px;
+  line-height: 28px;
+  border-left: 1px solid #222;
+  border-right: 1px solid #222;
+}
+
+.exercise-tempo-unit {
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: #6b7280;
+}
+
 .exercise-meta {
   margin-top: 12px;
   padding: 10px 12px;
@@ -230,6 +298,13 @@
   background: rgba(74,222,128,0.12);
   border: 1px solid rgba(74,222,128,0.35);
   color: #f0fdf4;
+}
+
+.swara-tile.autoplay {
+  background: rgba(251,191,36,0.15);
+  border: 1px solid rgba(251,191,36,0.45);
+  color: #fef9c3;
+  box-shadow: 0 0 8px rgba(251,191,36,0.25);
 }
 
 .exercise-group {

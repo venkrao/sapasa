@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './ExercisePanel.css'
 import { EarTrainerAudioEngine, type TonePreset } from './audio/earTrainerAudioEngine'
-import { sequenceStepHz, type ExercisePhrase, type SequenceStep } from './exerciseModel'
+import { deriveFlatSequence, sequenceStepHz, type ExercisePhrase, type SequenceStep } from './exerciseModel'
 
 export type Option = { id: string; label: string }
 
@@ -100,8 +100,54 @@ export default function ExercisePanel({
   const [referenceHint, setReferenceHint] = useState<string | null>(null)
   const [tonePreset, setTonePreset] = useState<TonePreset>('piano')
 
+  // ── Auto-play state ───────────────────────────────────────────────────
+  const [tempo, setTempo] = useState(60)
+  const [autoPlayActive, setAutoPlayActive] = useState(false)
+  const [autoPlayIndex, setAutoPlayIndex] = useState(-1)
+  const autoPlayCancelRef = useRef(false)
+
+  const flatSequenceForPlayback = useMemo(() => deriveFlatSequence(phrases), [phrases])
+
+  const stopAutoPlay = useCallback(() => {
+    autoPlayCancelRef.current = true
+    setAutoPlayActive(false)
+    setAutoPlayIndex(-1)
+    audioRef.current?.stop()
+  }, [])
+
+  const startAutoPlay = useCallback(async () => {
+    if (flatSequenceForPlayback.length === 0) return
+    if (!audioRef.current) audioRef.current = new EarTrainerAudioEngine()
+    await audioRef.current.ensureStarted()
+
+    autoPlayCancelRef.current = false
+    setAutoPlayActive(true)
+
+    const noteDurationSec = 60 / tempo
+
+    for (let i = 0; i < flatSequenceForPlayback.length; i++) {
+      if (autoPlayCancelRef.current) break
+      setAutoPlayIndex(i)
+      const hz = sequenceStepHz(flatSequenceForPlayback[i], saHz)
+      await audioRef.current.playNote(hz, noteDurationSec * 0.85, tonePreset)
+      await new Promise<void>(resolve => window.setTimeout(resolve, Math.ceil(noteDurationSec * 1000)))
+    }
+
+    if (!autoPlayCancelRef.current) {
+      setAutoPlayActive(false)
+      setAutoPlayIndex(-1)
+    }
+  }, [flatSequenceForPlayback, saHz, tempo, tonePreset])
+
+  // Cancel auto-play when the exercise/raga selection changes.
+  useEffect(() => {
+    stopAutoPlay()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRagaId, selectedExerciseId])
+
   useEffect(() => {
     return () => {
+      autoPlayCancelRef.current = true
       audioRef.current?.dispose()
       audioRef.current = null
     }
@@ -199,21 +245,61 @@ export default function ExercisePanel({
             </div>
           </div>
 
-          {!exerciseActive ? (
+          {/* ── Tempo + auto-play ── */}
+          {!exerciseActive && !autoPlayActive ? (
+            <div className="exercise-autoplay-row">
+              <div className="exercise-select-block">
+                <div className="exercise-select-label">Tempo</div>
+                <div className="exercise-tempo-stepper">
+                  <button
+                    className="exercise-tempo-step-btn"
+                    type="button"
+                    onClick={() => setTempo(t => Math.max(30, t - 4))}
+                    aria-label="Decrease tempo"
+                  >−</button>
+                  <span className="exercise-tempo-value">
+                    {tempo} <span className="exercise-tempo-unit">BPM</span>
+                  </span>
+                  <button
+                    className="exercise-tempo-step-btn"
+                    type="button"
+                    onClick={() => setTempo(t => Math.min(240, t + 4))}
+                    aria-label="Increase tempo"
+                  >+</button>
+                </div>
+              </div>
+              <button
+                className="exercise-btn exercise-btn-autoplay"
+                type="button"
+                onClick={() => void startAutoPlay()}
+                disabled={!canStart}
+                title={!canStart ? 'Select a raga and exercise first' : 'Play each note automatically'}
+              >
+                Start
+              </button>
+            </div>
+          ) : null}
+
+          {/* ── Sing & Test / Stop ── */}
+          {!exerciseActive && !autoPlayActive ? (
             <button
-              className="exercise-btn"
+              className="exercise-btn exercise-btn-sing"
               type="button"
               onClick={onStart}
               disabled={!canStart}
-              title={!canStart ? 'Select a raga and exercise first' : 'Start exercise'}
+              title={!canStart ? 'Select a raga and exercise first' : 'Sing along and test your ear'}
             >
-              Start
+              Sing &amp; Test
             </button>
-          ) : (
+          ) : exerciseActive ? (
             <button className="exercise-btn exercise-btn-stop" type="button" onClick={onStop}>
               Stop
             </button>
-          )}
+          ) : autoPlayActive ? (
+            <button className="exercise-btn exercise-btn-stop" type="button" onClick={stopAutoPlay}>
+              Stop
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -294,11 +380,13 @@ export default function ExercisePanel({
                     const tiles = group.steps.map((step, sIdx) => {
                       const tileFlatIndex = groupStart + sIdx
                       const isExpected = exerciseActive && tileFlatIndex === expectedIndex
+                      const isAutoPlaying = autoPlayActive && tileFlatIndex === autoPlayIndex
+                      const tileClass =
+                        'swara-tile ' +
+                        (isExpected ? 'expected ' : '') +
+                        (isAutoPlaying ? 'autoplay ' : '')
                       return (
-                        <span
-                          key={gIdx + ':' + sIdx}
-                          className={'swara-tile ' + (isExpected ? 'expected' : '')}
-                        >
+                        <span key={gIdx + ':' + sIdx} className={tileClass.trim()}>
                           {notationOf(step)}
                         </span>
                       )
