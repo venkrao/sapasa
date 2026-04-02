@@ -40,7 +40,12 @@ export default function PitchMonitorScreen({ onHome }: Props) {
   const [event, setEvent] = useState<PitchEvent>({ status: 'idle' })
   const [connected, setConnected] = useState(false)
   const [saHz, setSaHz] = useState(SA_HZ)
+  const [octaveShift, setOctaveShift] = useState(0)
+  const octaveShiftRef = useRef(0)
   const [listening, setListening] = useState(true)
+
+  // effectiveSaHz is what everything uses — shruti × octave multiplier.
+  const effectiveSaHz = saHz * Math.pow(2, octaveShift)
 
   // Sidebar resizer (draggable divider between graph and ExercisePanel).
   const [sidebarWidth, setSidebarWidth] = useState(360)
@@ -115,7 +120,7 @@ export default function PitchMonitorScreen({ onHome }: Props) {
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastDisplayed = useRef<number>(0)
   const graphPushRef = useRef<((freq: number | null) => void) | null>(null)
-  const saHzRef = useRef(SA_HZ) // stable ref for use inside WS closures
+  const saHzRef = useRef(SA_HZ) // always tracks effectiveSaHz for WS closures
   const listeningRef = useRef(true)
 
   const onGraphMount = useCallback((push: (freq: number | null) => void) => {
@@ -124,17 +129,28 @@ export default function PitchMonitorScreen({ onHome }: Props) {
 
   const shrutiSummary = useMemo(() => {
     const s = SHRUTI_LIST.find(x => x.hz === saHz)
-    return s ? `${s.kattai} (${s.western})` : `${saHz.toFixed(2)} Hz`
-  }, [saHz])
+    const base = s ? `${s.kattai} (${s.western})` : `${saHz.toFixed(2)} Hz`
+    return octaveShift !== 0 ? `${base} ${octaveShift > 0 ? `+${octaveShift}` : octaveShift} oct` : base
+  }, [saHz, octaveShift])
 
   function sendShruti(ws: WebSocket, hz: number) {
     if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'set_shruti', sa_hz: hz }))
   }
 
   function onShrutiChange(hz: number) {
-    saHzRef.current = hz
+    const effective = hz * Math.pow(2, octaveShiftRef.current)
+    saHzRef.current = effective
     setSaHz(hz)
-    if (wsRef.current) sendShruti(wsRef.current, hz)
+    if (wsRef.current) sendShruti(wsRef.current, effective)
+  }
+
+  function onOctaveShiftChange(shift: number) {
+    const clamped = Math.max(-2, Math.min(2, shift))
+    octaveShiftRef.current = clamped
+    const effective = saHz * Math.pow(2, clamped)
+    saHzRef.current = effective
+    setOctaveShift(clamped)
+    if (wsRef.current) sendShruti(wsRef.current, effective)
   }
 
   useEffect(() => {
@@ -330,15 +346,35 @@ export default function PitchMonitorScreen({ onHome }: Props) {
               </option>
             ))}
           </select>
+
+          <div className="octave-stepper" title="Shift Sa up or down by one octave">
+            <button
+              className="octave-step-btn"
+              type="button"
+              onClick={() => onOctaveShiftChange(octaveShift - 1)}
+              disabled={octaveShift <= -2}
+              aria-label="Shift octave down"
+            >−8va</button>
+            <span className="octave-value">
+              {octaveShift === 0 ? 'Oct' : octaveShift > 0 ? `+${octaveShift} oct` : `${octaveShift} oct`}
+            </span>
+            <button
+              className="octave-step-btn"
+              type="button"
+              onClick={() => onOctaveShiftChange(octaveShift + 1)}
+              disabled={octaveShift >= 2}
+              aria-label="Shift octave up"
+            >+8va</button>
+          </div>
         </div>
       </header>
 
-      <TanpuraStrip saHz={saHz} shrutiSummary={shrutiSummary} />
+      <TanpuraStrip saHz={effectiveSaHz} shrutiSummary={shrutiSummary} />
 
       <div className="graph-container">
         <div className="graph-left">
           <PitchGraph
-            saHz={saHz}
+            saHz={effectiveSaHz}
             paused={!listening}
             onMount={onGraphMount}
             allowedSwaras={exerciseActive ? allowedSwaras : null}
@@ -396,7 +432,7 @@ export default function PitchMonitorScreen({ onHome }: Props) {
           canStart={canStart}
           onStart={startExercise}
           onStop={stopExercise}
-          saHz={saHz}
+          saHz={effectiveSaHz}
           onReferencePlaybackStart={onReferencePlaybackStart}
           selectedRagaId={selectedRagaId}
           selectedExerciseId={selectedExerciseId}
