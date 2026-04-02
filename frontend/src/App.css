@@ -91,6 +91,54 @@
 .shruti-select:focus  { border-color: #444; }
 .shruti-select option { background: #111; color: #909090; }
 
+.octave-stepper {
+  display: flex;
+  align-items: center;
+  border: 1px solid #222;
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.octave-step-btn {
+  background: #111;
+  border: none;
+  color: #7a9ec4;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0 8px;
+  height: 26px;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: background 0.1s, color 0.1s;
+  white-space: nowrap;
+}
+
+.octave-step-btn:hover:not(:disabled) {
+  background: #1a1a1a;
+  color: #93c5fd;
+}
+
+.octave-step-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.octave-value {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #bdbdbd;
+  background: #0d0d0d;
+  padding: 0 8px;
+  height: 26px;
+  line-height: 26px;
+  border-left: 1px solid #222;
+  border-right: 1px solid #222;
+  min-width: 36px;
+  text-align: center;
+  white-space: nowrap;
+}
+
 /* ── Tanpura drone strip (Pitch Monitor) ── */
 .tanpura-bar {
   flex-shrink: 0;
