@@ -1,0 +1,329 @@
+/* ── Overlay backdrop ── */
+.sss-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  animation: sss-overlay-in 180ms ease;
+}
+
+@keyframes sss-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Card ── */
+.sss-card {
+  position: relative;
+  background: #111;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 36px 28px 28px;
+  width: 340px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  animation: sss-card-in 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes sss-card-in {
+  from { transform: scale(0.88); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+
+/* ── Close button ── */
+.sss-close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  font-size: 1.3rem;
+  color: #444;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  line-height: 1;
+  border-radius: 4px;
+}
+.sss-close:hover { color: #909090; }
+
+/* ── Section header ── */
+.sss-header {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #505050;
+}
+
+/* ── Circle container ── */
+.sss-circle-wrap {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The circle itself */
+.sss-circle {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sss-circle-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Phase: ready ── */
+.phase-ready .sss-circle {
+  border-color: rgba(255, 255, 255, 0.1);
+  transform: scale(0.82);
+  transition: none;
+}
+
+/* ── Phase: inhale ── */
+.phase-inhale .sss-circle {
+  border-color: rgba(56, 189, 248, 0.55);
+  box-shadow:
+    0 0 0 1px rgba(56, 189, 248, 0.1),
+    0 0 28px rgba(56, 189, 248, 0.12),
+    inset 0 0 24px rgba(56, 189, 248, 0.05);
+  animation: sss-inhale 3.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes sss-inhale {
+  from { transform: scale(0.52); }
+  to   { transform: scale(1); }
+}
+
+/* ── Phase: hiss — circle slowly deflates ── */
+.phase-hiss .sss-circle {
+  border-color: rgba(251, 191, 36, 0.45);
+  box-shadow:
+    0 0 0 1px rgba(251, 191, 36, 0.08),
+    0 0 28px rgba(251, 191, 36, 0.1),
+    inset 0 0 24px rgba(251, 191, 36, 0.04);
+  animation: sss-deflate 60s linear forwards;
+}
+
+@keyframes sss-deflate {
+  from { transform: scale(1); }
+  to   { transform: scale(0.4); }
+}
+
+/* Ripple rings: air escaping outward */
+.phase-hiss .sss-circle::before,
+.phase-hiss .sss-circle::after {
+  content: '';
+  position: absolute;
+  inset: -12px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(251, 191, 36, 0.3);
+  pointer-events: none;
+}
+
+.phase-hiss .sss-circle::before {
+  animation: sss-ripple 2.6s ease-out infinite;
+}
+
+.phase-hiss .sss-circle::after {
+  animation: sss-ripple 2.6s ease-out infinite 1.3s;
+}
+
+@keyframes sss-ripple {
+  0%   { transform: scale(1);    opacity: 0.7; }
+  100% { transform: scale(1.55); opacity: 0; }
+}
+
+/* ── Phase: done ── */
+.phase-done .sss-circle {
+  border-color: rgba(74, 222, 128, 0.4);
+  box-shadow: 0 0 22px rgba(74, 222, 128, 0.1);
+  transform: scale(0.85);
+  transition: transform 500ms ease, border-color 500ms;
+}
+
+/* ── Labels inside circle ── */
+.sss-phase-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+}
+
+.sss-phase-inhale {
+  color: #38bdf8;
+  animation: sss-label-pulse 3.2s ease-in-out forwards;
+}
+
+@keyframes sss-label-pulse {
+  0%   { opacity: 0.4; }
+  40%  { opacity: 1; }
+  100% { opacity: 1; }
+}
+
+.sss-phase-hiss {
+  font-size: 1.15rem;
+  color: #fbbf24;
+  animation: sss-hiss-flicker 1.4s ease-in-out infinite;
+}
+
+@keyframes sss-hiss-flicker {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.55; }
+}
+
+/* Elapsed timer */
+.sss-elapsed {
+  font-size: 1.6rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: #fbbf24;
+}
+
+.sss-elapsed-done {
+  font-size: 2rem;
+  color: #4ade80;
+}
+
+.sss-new-best {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #4ade80;
+  animation: sss-pop-in 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes sss-pop-in {
+  from { transform: scale(0.7); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+/* ── Instruction area ── */
+.sss-instruction {
+  width: 100%;
+  max-width: 288px;
+  min-height: 2.6em;
+}
+
+.sss-instruction p {
+  font-size: 0.81rem;
+  color: #5a5a5a;
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* Step list for the ready phase */
+.sss-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.sss-steps li {
+  font-size: 0.8rem;
+  color: #606060;
+  line-height: 1.45;
+  padding-left: 18px;
+  position: relative;
+}
+
+.sss-steps li::before {
+  content: '—';
+  position: absolute;
+  left: 0;
+  color: #333;
+  font-weight: 700;
+}
+
+.sss-steps em {
+  color: #909090;
+  font-style: normal;
+}
+
+.sss-steps strong {
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.sss-steps-target {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  font-size: 0.75rem !important;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #4ade80 !important;
+}
+
+.sss-steps-target::before {
+  content: none !important;
+  display: none;
+}
+
+/* ── Action buttons ── */
+.sss-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.sss-btn {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 8px 26px;
+  border-radius: 8px;
+  border: 1px solid;
+  cursor: pointer;
+  transition: background 120ms;
+}
+
+.sss-btn-begin {
+  background: rgba(56, 189, 248, 0.1);
+  border-color: rgba(56, 189, 248, 0.32);
+  color: #38bdf8;
+}
+.sss-btn-begin:hover { background: rgba(56, 189, 248, 0.2); }
+
+.sss-btn-done {
+  background: rgba(251, 191, 36, 0.1);
+  border-color: rgba(251, 191, 36, 0.32);
+  color: #fbbf24;
+}
+.sss-btn-done:hover { background: rgba(251, 191, 36, 0.18); }
+
+.sss-btn-again {
+  background: rgba(74, 222, 128, 0.08);
+  border-color: rgba(74, 222, 128, 0.28);
+  color: #4ade80;
+}
+.sss-btn-again:hover { background: rgba(74, 222, 128, 0.16); }
+
+.sss-btn-dismiss {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #505050;
+}
+.sss-btn-dismiss:hover { background: rgba(255, 255, 255, 0.08); }

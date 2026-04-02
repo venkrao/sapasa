@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import OrganTrainingPanel from './OrganTrainingPanel'
 
 type Props = {
@@ -6,8 +5,6 @@ type Props = {
 }
 
 export default function OrganTrainingScreen({ onHome }: Props) {
-  const [selectedOrganId, setSelectedOrganId] = useState('')
-
   return (
     <div className="app">
       <header className="header">
@@ -20,7 +17,7 @@ export default function OrganTrainingScreen({ onHome }: Props) {
       </header>
 
       <div className="graph-container organ-training-only">
-        <OrganTrainingPanel selectedOrganId={selectedOrganId} onOrganChange={setSelectedOrganId} />
+        <OrganTrainingPanel />
       </div>
     </div>
   )
