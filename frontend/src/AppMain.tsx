@@ -4,8 +4,9 @@ import HomeScreen from './HomeScreen'
 import PitchMonitorScreen from './PitchMonitorScreen'
 import EarTrainingScreen from './EarTrainingScreen'
 import OrganTrainingScreen from './OrganTrainingScreen'
+import ConsonantTrainingScreen from './ConsonantTrainingScreen'
 
-type Screen = 'home' | 'pitch' | 'ear' | 'organ'
+type Screen = 'home' | 'pitch' | 'ear' | 'organ' | 'consonant'
 
 export default function AppMain() {
   const [screen, setScreen] = useState<Screen>('home')
@@ -16,12 +17,14 @@ export default function AppMain() {
         onChoosePitch={() => setScreen('pitch')}
         onChooseEar={() => setScreen('ear')}
         onChooseOrgan={() => setScreen('organ')}
+        onChooseConsonant={() => setScreen('consonant')}
       />
     )
   }
 
-  if (screen === 'pitch') return <PitchMonitorScreen onHome={() => setScreen('home')} />
-  if (screen === 'organ') return <OrganTrainingScreen onHome={() => setScreen('home')} />
+  if (screen === 'pitch')    return <PitchMonitorScreen onHome={() => setScreen('home')} />
+  if (screen === 'organ')    return <OrganTrainingScreen onHome={() => setScreen('home')} />
+  if (screen === 'consonant') return <ConsonantTrainingScreen onHome={() => setScreen('home')} />
 
   return <EarTrainingScreen onHome={() => setScreen('home')} />
 }

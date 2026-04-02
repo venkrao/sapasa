@@ -1,0 +1,574 @@
+.ct-screen {
+  overflow: hidden;
+}
+
+.ct-header-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #737373;
+  letter-spacing: -0.01em;
+}
+
+/* ── Main scrollable area ── */
+.ct-main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 28px 20px 40px;
+}
+
+.ct-content {
+  width: min(780px, 100%);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+/* ── Core principle banner ── */
+.ct-principle {
+  margin: 0;
+  padding: 18px 20px 18px 24px;
+  border-radius: 14px;
+  border: 1px solid rgba(167, 139, 250, 0.22);
+  background: linear-gradient(160deg, rgba(109, 40, 217, 0.1), rgba(139, 92, 246, 0.04));
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.ct-principle-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  color: rgba(167, 139, 250, 0.5);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.ct-principle-text {
+  margin: 0;
+  font-size: 0.97rem;
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1.6;
+  color: #c4b5fd;
+}
+
+/* ── Three-Round Drill ── */
+.ct-drill {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ct-drill-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ct-drill-name {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #e5e5e5;
+  letter-spacing: -0.02em;
+}
+
+.ct-drill-description {
+  margin: 0;
+  font-size: 0.84rem;
+  color: #737373;
+  line-height: 1.5;
+}
+
+/* Rounds laid out vertically with connector line */
+.ct-rounds {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.ct-round {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  position: relative;
+}
+
+/* Vertical connector between rounds */
+.ct-round-connector {
+  position: absolute;
+  left: 16px;
+  top: 34px;
+  width: 2px;
+  bottom: -20px;
+  background: rgba(255,255,255,0.06);
+}
+
+.ct-round-number {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.88rem;
+  font-weight: 800;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #a3a3a3;
+  z-index: 1;
+  margin-top: 8px;
+}
+
+.ct-round-content {
+  flex: 1;
+  padding: 12px 16px 18px;
+  margin-bottom: 18px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.02);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ct-round-label {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #e5e5e5;
+  letter-spacing: -0.01em;
+}
+
+.ct-round-instruction {
+  margin: 0;
+  font-size: 0.83rem;
+  color: #a3a3a3;
+  line-height: 1.6;
+}
+
+.ct-round-target {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.05);
+  margin-top: 2px;
+}
+
+.ct-round-target-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #525252;
+}
+
+.ct-round-target-text {
+  margin: 0;
+  font-size: 0.79rem;
+  color: #737373;
+  line-height: 1.5;
+}
+
+/* Completion cue */
+.ct-drill-cue {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: rgba(74, 222, 128, 0.05);
+  border: 1px solid rgba(74, 222, 128, 0.15);
+}
+
+.ct-drill-cue-icon {
+  flex-shrink: 0;
+  font-size: 1rem;
+  color: #4ade80;
+  line-height: 1.5;
+}
+
+.ct-drill-cue-text {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #86efac;
+  line-height: 1.55;
+}
+
+/* "Try it now" nudge */
+.ct-drill-prompt {
+  font-size: 0.8rem;
+  color: #525252;
+  font-style: italic;
+  text-align: center;
+  padding: 4px 0;
+}
+
+/* ── Category cards ── */
+.ct-categories {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ct-categories-heading {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #404040;
+}
+
+.ct-categories-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ct-category-card {
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.07);
+  overflow: hidden;
+  transition: border-color 150ms;
+}
+
+.ct-category-card.open {
+  border-color: rgba(255,255,255,0.12);
+}
+
+.ct-category-trigger {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 160px) 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: rgba(255,255,255,0.025);
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  text-align: left;
+  transition: background 120ms;
+}
+
+.ct-category-card.open .ct-category-trigger {
+  background: rgba(255,255,255,0.04);
+}
+
+.ct-category-trigger:hover {
+  background: rgba(255,255,255,0.04);
+}
+
+.ct-category-trigger-left {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ct-category-name {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #e5e5e5;
+  letter-spacing: -0.01em;
+}
+
+.ct-category-examples {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #525252;
+  letter-spacing: 0.04em;
+}
+
+.ct-category-trigger-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.ct-category-summary {
+  font-size: 0.79rem;
+  color: #737373;
+  line-height: 1.4;
+  flex: 1;
+  text-align: left;
+}
+
+/* Chevron */
+.ct-chevron {
+  font-size: 1rem;
+  color: #404040;
+  line-height: 1;
+  flex-shrink: 0;
+  transform: rotate(0deg);
+  transition: transform 150ms ease;
+}
+
+.ct-chevron.open {
+  transform: rotate(90deg);
+}
+
+/* Category expanded body */
+.ct-category-body {
+  padding: 14px 16px 16px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Carnatic relevance block */
+.ct-carnatic-relevance {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(251,191,36,0.12);
+  background: rgba(251,191,36,0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.ct-carnatic-relevance-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #92400e;
+}
+
+.ct-carnatic-relevance-text {
+  margin: 0;
+  font-size: 0.81rem;
+  color: #a16207;
+  line-height: 1.55;
+}
+
+/* ── Exercises within a category ── */
+.ct-exercises {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ct-exercises-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #404040;
+  padding-bottom: 2px;
+}
+
+.ct-exercises-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #525252;
+  letter-spacing: 0;
+}
+
+/* Exercise card */
+.ct-exercise-card {
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.05);
+  overflow: hidden;
+}
+
+.ct-exercise-card.open {
+  border-color: rgba(255,255,255,0.09);
+}
+
+.ct-exercise-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.02);
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  text-align: left;
+  transition: background 100ms;
+}
+
+.ct-exercise-card.open .ct-exercise-trigger {
+  background: rgba(255,255,255,0.035);
+}
+
+.ct-exercise-trigger:hover {
+  background: rgba(255,255,255,0.04);
+}
+
+.ct-exercise-name {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #c8c8c8;
+  line-height: 1.3;
+  flex: 1;
+}
+
+.ct-exercise-trigger-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Difficulty badges */
+.ct-badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 20px;
+}
+
+.ct-badge-beginner {
+  background: rgba(74, 222, 128, 0.1);
+  color: #4ade80;
+  border: 1px solid rgba(74, 222, 128, 0.18);
+}
+
+.ct-badge-intermediate {
+  background: rgba(251, 191, 36, 0.1);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.18);
+}
+
+.ct-badge-advanced {
+  background: rgba(248, 113, 113, 0.1);
+  color: #f87171;
+  border: 1px solid rgba(248, 113, 113, 0.18);
+}
+
+/* Exercise expanded body */
+.ct-exercise-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 12px 14px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+.ct-exercise-instructions {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #8a8a8a;
+  line-height: 1.65;
+  white-space: pre-line;
+}
+
+.ct-exercise-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ct-exercise-target {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.ct-exercise-target-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #404040;
+}
+
+.ct-exercise-target-text {
+  margin: 0;
+  font-size: 0.79rem;
+  color: #737373;
+  line-height: 1.5;
+}
+
+.ct-exercise-duration {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.74rem;
+  color: #4ade80;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.ct-exercise-duration-icon {
+  font-size: 0.78rem;
+}
+
+/* Carnatic tip inside exercise */
+.ct-exercise-tip {
+  padding: 9px 11px;
+  border-radius: 8px;
+  background: rgba(251,191,36,0.04);
+  border: 1px solid rgba(251,191,36,0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ct-exercise-tip-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #78350f;
+}
+
+.ct-exercise-tip-text {
+  margin: 0;
+  font-size: 0.79rem;
+  color: #a16207;
+  line-height: 1.55;
+}
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+  .ct-main {
+    padding: 16px 14px 32px;
+  }
+
+  .ct-category-trigger {
+    grid-template-columns: 1fr auto;
+  }
+
+  .ct-category-trigger-left {
+    grid-column: 1;
+  }
+
+  .ct-category-trigger-right {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+  }
+
+  .ct-category-summary {
+    display: none;
+  }
+}

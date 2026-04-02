@@ -4,9 +4,10 @@ type Props = {
   onChoosePitch: () => void
   onChooseEar: () => void
   onChooseOrgan: () => void
+  onChooseConsonant: () => void
 }
 
-export default function HomeScreen({ onChoosePitch, onChooseEar, onChooseOrgan }: Props) {
+export default function HomeScreen({ onChoosePitch, onChooseEar, onChooseOrgan, onChooseConsonant }: Props) {
   return (
     <div className="app home-screen">
       <header className="header">
@@ -53,6 +54,19 @@ export default function HomeScreen({ onChoosePitch, onChooseEar, onChooseOrgan }
             <div className="home-card-title">Organ Training</div>
             <div className="home-card-desc">
               Exercises for the physical organs of singing — breath, folds, palate, and more.
+            </div>
+            <div className="home-card-cta">Open</div>
+          </button>
+
+          <button
+            type="button"
+            className="home-card home-card-consonant"
+            onClick={onChooseConsonant}
+            aria-label="Open consonant training module"
+          >
+            <div className="home-card-title">Consonant Training</div>
+            <div className="home-card-desc">
+              Learn to handle consonants without breaking tone — plosives, nasals, and fricatives.
             </div>
             <div className="home-card-cta">Open</div>
           </button>
