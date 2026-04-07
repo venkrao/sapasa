@@ -12,9 +12,12 @@ const API = 'http://localhost:8765'
 export default function SSSHissGuide({
   onClose,
   onSessionSaved,
+  inline = false,
 }: {
   onClose: () => void
   onSessionSaved?: () => void
+  /** Render as an inline panel (no backdrop overlay, no fixed positioning) */
+  inline?: boolean
 }) {
   const [phase, setPhase] = useState<Phase>('ready')
   const [hissMs, setHissMs] = useState(0)
@@ -69,19 +72,20 @@ export default function SSSHissGuide({
 
   const isNewBest = phase === 'done' && hissMs > 0 && hissMs >= bestMs
 
-  return (
+  const card = (
     <div
-      className="sss-overlay"
-      onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}
+      className={inline ? 'sss-inline-card' : 'sss-card'}
+      role="dialog"
+      aria-modal={inline ? undefined : 'true'}
+      aria-label="Guided SSS Hiss exercise"
     >
-      <div className="sss-card" role="dialog" aria-modal="true" aria-label="Guided SSS Hiss exercise">
-        <button className="sss-close" type="button" onClick={onClose} aria-label="Close">
-          ×
-        </button>
+      {!inline && (
+        <button className="sss-close" type="button" onClick={onClose} aria-label="Close">×</button>
+      )}
 
-        <div className="sss-header">
-          Sustained &ldquo;SSS&rdquo; Hiss
-        </div>
+      <div className="sss-header">
+        Sustained &ldquo;SSS&rdquo; Hiss
+      </div>
 
         {/* ── Animated circle ── */}
         <div className={`sss-circle-wrap phase-${phase}`} aria-hidden="true">
@@ -152,12 +156,22 @@ export default function SSSHissGuide({
                 Try again
               </button>
               <button type="button" className="sss-btn sss-btn-dismiss" onClick={onClose}>
-                Close
+                {inline ? 'Exit exercise' : 'Close'}
               </button>
             </>
           )}
         </div>
       </div>
+  )
+
+  if (inline) return card
+
+  return (
+    <div
+      className="sss-overlay"
+      onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      {card}
     </div>
   )
 }

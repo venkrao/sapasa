@@ -642,28 +642,120 @@
   font-size: 0.78rem;
 }
 
-/* ── Two-column full-page layout ───────────────────────────────────────── */
-.organ-layout {
+/* ── New two-column layout (exercises | main area) ──────────────────────── */
+.organ-layout-new {
   display: grid;
-  grid-template-columns: 360px 1fr;
+  grid-template-columns: 340px 1fr;
   width: 100%;
   height: 100%;
   overflow: hidden;
+  position: relative; /* anchor for FAB + progress drawer */
+  transition: grid-template-columns 220ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.organ-col {
+/* Collapsed: shrink the left column to just the toggle button strip */
+.organ-layout-new.sidebar-collapsed {
+  grid-template-columns: 36px 1fr;
+}
+
+.organ-col-left {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;           /* hide content when collapsing */
+  height: 100%;
+  border-right: 1px solid #161616;
+  background: #0c0c0c;
+  position: relative;
+}
+
+/* ── Sidebar toggle button ─────────────────────────────────────────────── */
+.sidebar-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 5;
+  /* Tall strip on the right edge of the column */
+  width: 28px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: transparent;
+  border: none;
+  border-left: 1px solid transparent;
+  cursor: pointer;
+  color: #3a3a3a;
+  transition: color 150ms, background 150ms, border-color 150ms;
+  padding: 0;
+}
+.sidebar-toggle:hover {
+  background: rgba(255,255,255,0.03);
+  border-left-color: rgba(255,255,255,0.07);
+  color: #888;
+}
+
+/* When collapsed, the toggle is the full 36px column — make it more visible */
+.sidebar-collapsed .sidebar-toggle {
+  width: 100%;
+  border-left: none;
+  border-right: 1px solid #1a1a1a;
+  color: #484848;
+}
+.sidebar-collapsed .sidebar-toggle:hover {
+  color: #888;
+  background: rgba(255,255,255,0.04);
+}
+
+.sidebar-toggle-chevron {
+  font-size: 1rem;
+  line-height: 1;
+  display: block;
+  transition: transform 220ms cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+/* Point right (›) when collapsed */
+.sidebar-toggle-chevron.flipped {
+  transform: rotate(180deg);
+}
+
+/* Rotated "Exercises" label visible only when collapsed */
+.sidebar-toggle-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: inherit;
+  writing-mode: vertical-lr;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  user-select: none;
+}
+
+/* The scrollable content area — shifted right to not overlap the toggle */
+.sidebar-content {
+  padding-right: 30px; /* leave room for the toggle button */
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1;
+  min-height: 0;
+  opacity: 1;
+  transition: opacity 200ms ease 80ms; /* fade in after grid expands */
+}
+
+/* Hide content while collapsed */
+.sidebar-collapsed .sidebar-content {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 100ms ease;
+}
+
+.organ-col-main {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
   height: 100%;
-}
-
-.organ-col-exercises {
-  border-right: 1px solid #161616;
-  background: #0c0c0c;
-}
-
-.organ-col-tracker {
   background: #080810;
 }
 
@@ -674,6 +766,227 @@
   padding: 20px 20px 28px;
 }
 
+/* ── Main area placeholder (nothing active) ─────────────────────────── */
+.organ-main-placeholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 32px;
+}
+.organ-placeholder-text {
+  font-size: 0.84rem;
+  color: #2a2a2a;
+  text-align: center;
+  line-height: 1.6;
+}
+
+/* ── Active exercise area ───────────────────────────────────────────── */
+.organ-active-area {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.organ-active-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px 12px;
+  border-bottom: 1px solid #161616;
+}
+
+.organ-active-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #525252;
+}
+
+.organ-camera-toggle {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 7px;
+  border: 1px solid rgba(251,191,36,0.2);
+  background: rgba(251,191,36,0.06);
+  color: rgba(251,191,36,0.75);
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms;
+  letter-spacing: 0.02em;
+}
+.organ-camera-toggle:hover {
+  background: rgba(251,191,36,0.12);
+  border-color: rgba(251,191,36,0.35);
+}
+.organ-camera-toggle.active {
+  background: rgba(251,191,36,0.1);
+  border-color: rgba(251,191,36,0.3);
+  color: rgba(251,191,36,0.9);
+}
+
+/* Body: side-by-side guide + camera when camera open */
+.organ-active-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.organ-guide-wrap {
+  flex: 0 0 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  padding: 24px 16px;
+  border-right: 1px solid #161616;
+}
+
+/* No camera open: guide stretches to fill the full main area */
+.organ-active-body:not(.with-camera) .organ-guide-wrap {
+  flex: 1;
+  border-right: none;
+}
+
+.organ-camera-wrap {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Running state badge on the card in the left list */
+.organ-exercise-card.exercise-running {
+  border-color: rgba(56,189,248,0.2);
+}
+.organ-exercise-card.exercise-running .organ-exercise-trigger {
+  background: rgba(56,189,248,0.04);
+}
+.ex-running-badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #38bdf8;
+  background: rgba(56,189,248,0.1);
+  border: 1px solid rgba(56,189,248,0.2);
+  border-radius: 4px;
+  padding: 1px 7px;
+}
+.organ-exercise-exit-btn {
+  align-self: flex-start;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 7px;
+  border: 1px solid rgba(248,113,113,0.2);
+  background: rgba(248,113,113,0.06);
+  color: rgba(248,113,113,0.75);
+  cursor: pointer;
+  transition: background 120ms;
+}
+.organ-exercise-exit-btn:hover {
+  background: rgba(248,113,113,0.12);
+}
+
+/* ── Progress FAB ───────────────────────────────────────────────────── */
+.progress-fab {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px 7px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(102,119,187,0.25);
+  background: rgba(14,14,22,0.92);
+  color: #6677bb;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: border-color 120ms, background 120ms, color 120ms;
+  z-index: 10;
+}
+.progress-fab:hover {
+  border-color: rgba(102,119,187,0.5);
+  color: #99aade;
+}
+.progress-fab-active {
+  border-color: rgba(102,119,187,0.45);
+  background: rgba(20,20,40,0.95);
+  color: #99aade;
+}
+.progress-fab-icon {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+.progress-fab-label {
+  text-transform: uppercase;
+}
+
+/* ── Progress drawer ────────────────────────────────────────────────── */
+.progress-drawer-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  z-index: 40;
+  animation: progress-backdrop-in 180ms ease;
+}
+@keyframes progress-backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.progress-drawer-panel {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: min(460px, 80%);
+  background: #080810;
+  border-left: 1px solid #181828;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 22px 22px 32px;
+  animation: progress-panel-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes progress-panel-in {
+  from { transform: translateX(30px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+.progress-drawer-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.progress-drawer-close {
+  flex-shrink: 0;
+  font-size: 1.2rem;
+  color: #333;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1;
+  margin-top: -2px;
+}
+.progress-drawer-close:hover { color: #777; }
+
 /* ── Progress tracker heading ─────────────────────────────────────────── */
 .organ-tracker-heading {
   display: flex;
@@ -682,7 +995,6 @@
   padding-bottom: 4px;
   border-bottom: 1px solid #181828;
 }
-
 .organ-tracker-heading-title {
   font-size: 0.68rem;
   font-weight: 700;
@@ -690,7 +1002,6 @@
   text-transform: uppercase;
   color: #6677bb;
 }
-
 .organ-tracker-heading-sub {
   font-size: 0.78rem;
   color: #3a3a55;
@@ -702,7 +1013,6 @@
   flex-direction: column;
   gap: 6px;
 }
-
 .organ-tracker-section-label {
   font-size: 0.68rem;
   font-weight: 700;
@@ -710,13 +1020,11 @@
   color: #5566aa;
   text-transform: uppercase;
 }
-
 .organ-tracker-section-sub {
   font-size: 0.73rem;
   color: #33334d;
   line-height: 1.45;
 }
-
 .organ-tracker-loading {
   font-size: 0.8rem;
   color: #555577;
@@ -728,7 +1036,31 @@
 .app .graph-container.organ-training-only {
   overflow: hidden;
 }
-
-.app .graph-container.organ-training-only .organ-layout {
+.app .graph-container.organ-training-only .organ-layout-new {
   flex: 1 1 auto;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────── */
+@media (max-width: 800px) {
+  .organ-layout-new {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  .organ-col-left {
+    max-height: 40vh;
+    border-right: none;
+    border-bottom: 1px solid #161616;
+  }
+  .organ-guide-wrap {
+    flex: 0 0 auto;
+    border-right: none;
+    border-bottom: 1px solid #161616;
+  }
+  .organ-camera-wrap {
+    flex: 0 0 300px;
+    border-top: 1px solid #161616;
+  }
+  .organ-active-body.with-camera {
+    flex-direction: column;
+  }
 }

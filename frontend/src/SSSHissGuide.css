@@ -1,3 +1,14 @@
+/* ── Inline card (no overlay) ── */
+.sss-inline-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  width: 100%;
+  max-width: 360px;
+  /* No background or border — sits directly inside the organ panel */
+}
+
 /* ── Overlay backdrop ── */
 .sss-overlay {
   position: fixed;

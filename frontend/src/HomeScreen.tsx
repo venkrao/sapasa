@@ -5,9 +5,10 @@ type Props = {
   onChooseEar: () => void
   onChooseOrgan: () => void
   onChooseConsonant: () => void
+  onChooseCamera: () => void
 }
 
-export default function HomeScreen({ onChoosePitch, onChooseEar, onChooseOrgan, onChooseConsonant }: Props) {
+export default function HomeScreen({ onChoosePitch, onChooseEar, onChooseOrgan, onChooseConsonant, onChooseCamera }: Props) {
   return (
     <div className="app home-screen">
       <header className="header">
@@ -67,6 +68,19 @@ export default function HomeScreen({ onChoosePitch, onChooseEar, onChooseOrgan, 
             <div className="home-card-title">Consonant Training</div>
             <div className="home-card-desc">
               Learn to handle consonants without breaking tone — plosives, nasals, and fricatives.
+            </div>
+            <div className="home-card-cta">Open</div>
+          </button>
+
+          <button
+            type="button"
+            className="home-card home-card-camera"
+            onClick={onChooseCamera}
+            aria-label="Open camera observation lab"
+          >
+            <div className="home-card-title">Camera Lab</div>
+            <div className="home-card-desc">
+              Watch posture in real time — shoulders, head alignment, jaw opening, and mouth shape.
             </div>
             <div className="home-card-cta">Open</div>
           </button>
