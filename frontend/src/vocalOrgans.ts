@@ -26,76 +26,70 @@ export type BreathEssentialItem = {
   title: string
   /** Optional ID linking this item to a guided animation. */
   guideId?: string
-  /** Nose only, mouth, or nose + mouth — quick inhale guidance per exercise. */
-  inhaleThrough: string
-  /** Why this inhale pattern fits the exercise. */
-  inhaleWhy: string
-  body: string
-  sourceLabel: string
-  sourceUrl: string
+  /** Step-by-step instructions rendered as a bullet list. */
+  steps: string[]
 }
 
 /**
- * Curated “if you could only do five” breath exercises — each trains a distinct skill.
+ * Curated "if you could only do five" breath exercises — each trains a distinct skill.
  * Prepended to diaphragm and core exercise lists in organ training.
  */
 export const BREATH_CONTROL_ESSENTIAL_FIVE: BreathEssentialItem[] = [
   {
     title: 'Belly Breathing Reset (4-in / 4-out)',
-    inhaleThrough: 'Nose only',
-    inhaleWhy: 'Slow, no rush — trains depth and diaphragm engagement.',
-    body: 'Inhale through your nose for 4 counts — belly out, chest still, shoulders down. Exhale for 4 counts, belly back in. This is the non-negotiable foundation. Every other exercise on this list collapses without this one being automatic.',
-    sourceLabel: 'K&M Music School',
-    sourceUrl: 'https://kandmmusicschool.com/blogs/voice-lessons/15-science-backed-breathing-exercises-to-improve-your-singing-voice/',
+    steps: [
+      'Sit or stand tall; place one hand flat on your belly.',
+      'Inhale through your nose for 4 counts — belly pushes out, chest stays still, shoulders stay down.',
+      'Exhale for 4 counts — belly draws back in.',
+      'This is the foundation: every technique on this list fails without it being completely automatic.',
+    ],
   },
   {
-    title: 'Sustained “SSS” Hiss',
-    inhaleThrough: 'Nose + mouth',
-    inhaleWhy: 'You need a full, fast tank of air before the long exhale.',
-    body: 'Full diaphragmatic breath in, then release through a steady, thin hiss (“sssss”) for as long as possible. Time it every session — aim to grow from 15 sec to 45+ sec. This is the single most honest test of breath control: the hiss exposes every air leak and pressure inconsistency immediately.',
+    title: 'Sustained "SSS" Hiss',
     guideId: 'sss-hiss',
-    sourceLabel: 'School of Rock',
-    sourceUrl: 'https://www.schoolofrock.com/resources/vocals/6-easy-effective-breath-exercises-for-singers',
+    steps: [
+      'Take a full diaphragmatic breath in — belly expands first.',
+      'Release through a steady, thin "sssss" hiss for as long as possible — no wavering or fading.',
+      'Time it every session: target 15 s now, grow toward 45+ s over weeks.',
+      'Any wobble or fade in the hiss immediately reveals an air leak or pressure inconsistency.',
+    ],
   },
   {
     title: '4-in / 8-out (then extend)',
-    inhaleThrough: 'Nose only',
-    inhaleWhy: 'The 4-count is slow enough — the nose reinforces calm, measured control.',
-    body: 'Inhale for 4 counts, exhale on a sustained “f” or “v” for 8. Then 4-in / 10-out. Then 4-in / 12-out. Progress the ratio over weeks. This trains your abs and diaphragm to regulate — not dump — air, which is the exact mechanism behind long phrases and powerful sustained notes.',
-    sourceLabel: 'Theatrefolk',
-    sourceUrl: 'https://www.theatrefolk.com/blog/a-simple-breath-control-exercise-for-actors-singers',
+    steps: [
+      'Inhale through your nose for 4 counts.',
+      'Exhale on a sustained "f" or "v" sound for 8 counts.',
+      'Week by week, extend the exhale: 4-in / 10-out → 4-in / 12-out.',
+      'Trains your abs and diaphragm to regulate air — not dump it — the key to long phrases and sustained high notes.',
+    ],
   },
   {
-    title: 'Staccato “Ha” Pulses',
-    inhaleThrough: 'Mouth',
-    inhaleWhy: 'Recovery breaths between bursts are too quick for the nose alone.',
-    body: 'Take a breath, then fire short, sharp “ha-ha-ha-ha” bursts on a single pitch, each one driven by a quick belly contraction. This builds the fast-twitch engagement reflex your body needs for dynamic, accented, and rhythmic singing. Without it, your support only works on slow, sustained lines.',
-    sourceLabel: 'Forbrain',
-    sourceUrl: 'https://www.forbrain.com/how-to-sing-better/breathing-exercises/',
+    title: 'Staccato "Ha" Pulses',
+    steps: [
+      'Take a full breath, then fire short sharp "ha-ha-ha-ha" bursts on a single pitch.',
+      'Each "ha" must be driven by a quick belly contraction — not the throat.',
+      'Use quick mouth breaths to recover between burst sets.',
+      'Builds the fast-twitch reflex needed for dynamic, accented, and rhythmic singing.',
+    ],
   },
   {
     title: 'Singing Through a Straw (SOVT)',
-    inhaleThrough: 'Nose + mouth',
-    inhaleWhy: 'You need a full breath; with the straw, the lips are already open for a quick top-up.',
-    body: 'Hum or sing a simple 5-note scale through a regular drinking straw. The resistance forces your breath to support the sound instead of overpower it — it’s the fastest way to feel what correct breath-to-tone balance actually is. Professionals use this as a daily reset.',
-    sourceLabel: 'Singing Revealed',
-    sourceUrl: 'https://www.singingrevealed.com/blog/best-vocal-exercises-using-sovts-semi-occluded-vocal-tract',
+    steps: [
+      'Take a full breath through nose + mouth (lips already around the straw).',
+      'Hum or sing a simple 5-note scale through a regular drinking straw.',
+      'The resistance forces your breath to support the sound — not overpower it.',
+      'Fastest way to physically feel correct breath-to-tone balance; use as a daily reset.',
+    ],
   },
 ]
 
 export const BREATH_CONTROL_ESSENTIAL_SUMMARY =
-  'These five cover the full breath chain: awareness → capacity → control → power → application. That’s all you ever need.'
+  'These five cover the full breath chain: awareness → capacity → control → power → application. That\'s all you ever need.'
 
 function breathEssentialsToExercises(): TrainingExercise[] {
   return BREATH_CONTROL_ESSENTIAL_FIVE.map(item => ({
     name: item.title,
-    description: [
-      item.body,
-      '',
-      `Inhale through ${item.inhaleThrough} — ${item.inhaleWhy}`,
-    ].join('\n'),
-    sourceLabel: item.sourceLabel,
-    sourceUrl: item.sourceUrl,
+    description: item.steps.join('\n'),
     ...(item.guideId ? { guideId: item.guideId } : {}),
   }))
 }

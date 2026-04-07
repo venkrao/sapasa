@@ -62,7 +62,12 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
 
                   {open && (
                     <div className="organ-exercise-body">
-                      {isGuided ? (
+                      <ul className="organ-exercise-steps">
+                        {ex.steps.map((step, si) => (
+                          <li key={si} className="organ-exercise-step">{step}</li>
+                        ))}
+                      </ul>
+                      {isGuided && (
                         <button
                           type="button"
                           className="organ-exercise-start-btn"
@@ -70,23 +75,6 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
                         >
                           Start Exercise
                         </button>
-                      ) : (
-                        <>
-                          <p className="organ-exercise-desc">{ex.body}</p>
-                          <div className="organ-exercise-inhale">
-                            <span className="organ-exercise-inhale-label">Inhale through</span>
-                            <span className="organ-exercise-inhale-channel">{ex.inhaleThrough}</span>
-                            <span className="organ-exercise-inhale-why">{ex.inhaleWhy}</span>
-                          </div>
-                          <a
-                            className="organ-exercise-source"
-                            href={ex.sourceUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            {ex.sourceLabel}
-                          </a>
-                        </>
                       )}
                     </div>
                   )}
