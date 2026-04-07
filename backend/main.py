@@ -1,7 +1,10 @@
 import asyncio
+import datetime
 import json
 import math
+import pathlib
 import queue
+import sqlite3
 import threading
 from collections import deque
 from contextlib import asynccontextmanager
@@ -11,10 +14,33 @@ import aubio
 import numpy as np
 import sounddevice as sd
 import uvicorn
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 import carnatic_engine
+
+# ── Persistent storage ────────────────────────────────────────────────────────
+
+DB_PATH = pathlib.Path(__file__).parent / "sapasa.db"
+
+
+def _init_db() -> None:
+    with sqlite3.connect(DB_PATH) as con:
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS exercise_sessions (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                exercise_id  TEXT    NOT NULL,
+                ts           TEXT    NOT NULL,
+                duration_sec REAL    NOT NULL
+            )
+        """)
+        con.execute(
+            "CREATE INDEX IF NOT EXISTS idx_ex_ts "
+            "ON exercise_sessions (exercise_id, ts)"
+        )
+
+
+_init_db()
 
 SAMPLE_RATE = 44100
 BLOCK_SIZE  = 512   # hop size: new samples per audio callback (~11 ms)
@@ -176,6 +202,46 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         pass
     finally:
         send_task.cancel()
+
+
+@app.post("/api/exercise-sessions")
+async def save_exercise_session(body: dict) -> dict:
+    """Record one completed exercise attempt.
+
+    Body: { "exerciseId": str, "durationSec": float }
+    """
+    with sqlite3.connect(DB_PATH) as con:
+        con.execute(
+            "INSERT INTO exercise_sessions (exercise_id, ts, duration_sec) "
+            "VALUES (?, ?, ?)",
+            (
+                str(body["exerciseId"]),
+                datetime.datetime.utcnow().isoformat(),
+                float(body["durationSec"]),
+            ),
+        )
+    return {"ok": True}
+
+
+@app.get("/api/exercise-sessions")
+async def get_exercise_sessions(
+    exerciseId: str = Query(...),
+    days: int = Query(default=30, ge=1, le=365),
+) -> list[dict]:
+    """Return daily-best durations for the given exercise over the last N days."""
+    with sqlite3.connect(DB_PATH) as con:
+        rows = con.execute(
+            """
+            SELECT date(ts) AS day, MAX(duration_sec) AS best
+            FROM exercise_sessions
+            WHERE exercise_id = ?
+              AND ts >= date('now', ? || ' days')
+            GROUP BY day
+            ORDER BY day
+            """,
+            (exerciseId, f"-{days}"),
+        ).fetchall()
+    return [{"day": r[0], "best": r[1]} for r in rows]
 
 
 if __name__ == "__main__":

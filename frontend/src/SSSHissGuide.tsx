@@ -7,7 +7,15 @@ function formatSec(ms: number): string {
   return (ms / 1000).toFixed(1) + 's'
 }
 
-export default function SSSHissGuide({ onClose }: { onClose: () => void }) {
+const API = 'http://localhost:8765'
+
+export default function SSSHissGuide({
+  onClose,
+  onSessionSaved,
+}: {
+  onClose: () => void
+  onSessionSaved?: () => void
+}) {
   const [phase, setPhase] = useState<Phase>('ready')
   const [hissMs, setHissMs] = useState(0)
   const [bestMs, setBestMs] = useState(0)
@@ -37,6 +45,15 @@ export default function SSSHissGuide({ onClose }: { onClose: () => void }) {
     setHissMs(held)
     setBestMs(prev => Math.max(prev, held))
     setPhase('done')
+
+    const durationSec = held / 1000
+    fetch(`${API}/api/exercise-sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ exerciseId: 'sss-hiss', durationSec }),
+    })
+      .then(() => onSessionSaved?.())
+      .catch(() => {})
   }
 
   function again() {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import './OrganTrainingPanel.css'
 import {
   BREATH_CONTROL_ESSENTIAL_FIVE,
@@ -6,6 +6,9 @@ import {
   type BreathEssentialItem,
 } from './vocalOrgans'
 import SSSHissGuide from './SSSHissGuide'
+import HissChart, { type HissSession } from './HissChart'
+
+const API = 'http://localhost:8765'
 
 type Props = {
   panelWidthPx?: number
@@ -14,6 +17,17 @@ type Props = {
 export default function OrganTrainingPanel({ panelWidthPx }: Props) {
   const [expandedEx, setExpandedEx] = useState<Set<number>>(new Set())
   const [guideOpen, setGuideOpen]   = useState(false)
+  const [hissSessions, setHissSessions] = useState<HissSession[]>([])
+
+  const fetchHissHistory = useCallback(() => {
+    fetch(`${API}/api/exercise-sessions?exerciseId=sss-hiss`)
+      .then(r => r.json())
+      .then((data: HissSession[]) => setHissSessions(data))
+      .catch(() => {})
+  }, [])
+
+  // Index of the SSS Hiss exercise (guideId === 'sss-hiss')
+  const hissIdx = BREATH_CONTROL_ESSENTIAL_FIVE.findIndex(e => e.guideId === 'sss-hiss')
 
   function toggleEx(i: number) {
     setExpandedEx(prev => {
@@ -22,6 +36,11 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
       return next
     })
   }
+
+  // Fetch SSS Hiss history whenever that card is expanded.
+  useEffect(() => {
+    if (expandedEx.has(hissIdx)) fetchHissHistory()
+  }, [expandedEx, hissIdx, fetchHissHistory])
 
   useEffect(() => {
     if (!guideOpen) return
@@ -32,7 +51,12 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
 
   return (
     <>
-      {guideOpen && <SSSHissGuide onClose={() => setGuideOpen(false)} />}
+      {guideOpen && (
+        <SSSHissGuide
+          onClose={() => setGuideOpen(false)}
+          onSessionSaved={fetchHissHistory}
+        />
+      )}
       <aside
         className="organ-panel"
         style={panelWidthPx !== undefined ? { width: panelWidthPx, flexShrink: 0 } : undefined}
@@ -68,13 +92,17 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
                         ))}
                       </ul>
                       {isGuided && (
-                        <button
-                          type="button"
-                          className="organ-exercise-start-btn"
-                          onClick={() => setGuideOpen(true)}
-                        >
-                          Start Exercise
-                        </button>
+                        <>
+                          <div className="organ-exercise-chart-header">Progress — daily best</div>
+                          <HissChart sessions={hissSessions} />
+                          <button
+                            type="button"
+                            className="organ-exercise-start-btn"
+                            onClick={() => setGuideOpen(true)}
+                          >
+                            Start Exercise
+                          </button>
+                        </>
                       )}
                     </div>
                   )}
