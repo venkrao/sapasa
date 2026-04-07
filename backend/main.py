@@ -227,21 +227,42 @@ async def save_exercise_session(body: dict) -> dict:
 async def get_exercise_sessions(
     exerciseId: str = Query(...),
     days: int = Query(default=30, ge=1, le=365),
+    raw: bool = Query(default=False),
 ) -> list[dict]:
-    """Return daily-best durations for the given exercise over the last N days."""
+    """Return exercise history.
+
+    raw=false (default): one row per day with the daily-best duration.
+      → [{ day, best }, ...]
+
+    raw=true: every individual attempt, oldest first.
+      → [{ ts, durationSec }, ...]
+    """
     with sqlite3.connect(DB_PATH) as con:
-        rows = con.execute(
-            """
-            SELECT date(ts) AS day, MAX(duration_sec) AS best
-            FROM exercise_sessions
-            WHERE exercise_id = ?
-              AND ts >= date('now', ? || ' days')
-            GROUP BY day
-            ORDER BY day
-            """,
-            (exerciseId, f"-{days}"),
-        ).fetchall()
-    return [{"day": r[0], "best": r[1]} for r in rows]
+        if raw:
+            rows = con.execute(
+                """
+                SELECT ts, duration_sec
+                FROM exercise_sessions
+                WHERE exercise_id = ?
+                  AND ts >= date('now', ? || ' days')
+                ORDER BY ts
+                """,
+                (exerciseId, f"-{days}"),
+            ).fetchall()
+            return [{"ts": r[0], "durationSec": r[1]} for r in rows]
+        else:
+            rows = con.execute(
+                """
+                SELECT date(ts) AS day, MAX(duration_sec) AS best
+                FROM exercise_sessions
+                WHERE exercise_id = ?
+                  AND ts >= date('now', ? || ' days')
+                GROUP BY day
+                ORDER BY day
+                """,
+                (exerciseId, f"-{days}"),
+            ).fetchall()
+            return [{"day": r[0], "best": r[1]} for r in rows]
 
 
 if __name__ == "__main__":

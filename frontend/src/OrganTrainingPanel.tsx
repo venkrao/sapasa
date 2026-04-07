@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import './OrganTrainingPanel.css'
 import {
   BREATH_CONTROL_ESSENTIAL_FIVE,
@@ -6,7 +6,7 @@ import {
   type BreathEssentialItem,
 } from './vocalOrgans'
 import SSSHissGuide from './SSSHissGuide'
-import HissChart, { type HissSession } from './HissChart'
+import ProgressChart, { AttemptsChart, type ProgressSession, type AttemptRecord } from './ProgressChart'
 
 const API = 'http://localhost:8765'
 
@@ -17,17 +17,34 @@ type Props = {
 export default function OrganTrainingPanel({ panelWidthPx }: Props) {
   const [expandedEx, setExpandedEx] = useState<Set<number>>(new Set())
   const [guideOpen, setGuideOpen]   = useState(false)
-  const [hissSessions, setHissSessions] = useState<HissSession[]>([])
+
+  const [dailySessions, setDailySessions]   = useState<ProgressSession[]>([])
+  const [allAttempts, setAllAttempts]       = useState<AttemptRecord[]>([])
+  const [trackerLoading, setTrackerLoading] = useState(true)
 
   const fetchHissHistory = useCallback(() => {
-    fetch(`${API}/api/exercise-sessions?exerciseId=sss-hiss`)
-      .then(r => r.json())
-      .then((data: HissSession[]) => setHissSessions(data))
+    setTrackerLoading(true)
+    Promise.all([
+      fetch(`${API}/api/exercise-sessions?exerciseId=sss-hiss`).then(r => r.json()),
+      fetch(`${API}/api/exercise-sessions?exerciseId=sss-hiss&raw=true`).then(r => r.json()),
+    ])
+      .then(([daily, raw]: [ProgressSession[], AttemptRecord[]]) => {
+        setDailySessions(daily)
+        setAllAttempts(raw)
+      })
       .catch(() => {})
+      .finally(() => setTrackerLoading(false))
   }, [])
 
-  // Index of the SSS Hiss exercise (guideId === 'sss-hiss')
-  const hissIdx = BREATH_CONTROL_ESSENTIAL_FIVE.findIndex(e => e.guideId === 'sss-hiss')
+  // Fetch on mount
+  useEffect(() => { fetchHissHistory() }, [fetchHissHistory])
+
+  useEffect(() => {
+    if (!guideOpen) return
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') setGuideOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [guideOpen])
 
   function toggleEx(i: number) {
     setExpandedEx(prev => {
@@ -37,18 +54,6 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
     })
   }
 
-  // Fetch SSS Hiss history whenever that card is expanded.
-  useEffect(() => {
-    if (expandedEx.has(hissIdx)) fetchHissHistory()
-  }, [expandedEx, hissIdx, fetchHissHistory])
-
-  useEffect(() => {
-    if (!guideOpen) return
-    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') setGuideOpen(false) }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [guideOpen])
-
   return (
     <>
       {guideOpen && (
@@ -57,44 +62,43 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
           onSessionSaved={fetchHissHistory}
         />
       )}
-      <aside
-        className="organ-panel"
-        style={panelWidthPx !== undefined ? { width: panelWidthPx, flexShrink: 0 } : undefined}
+
+      <div
+        className="organ-layout"
+        style={panelWidthPx !== undefined ? { width: panelWidthPx } : undefined}
       >
-        <div className="organ-panel-inner">
+        {/* ── Left column: exercises ──────────────────────────────────── */}
+        <div className="organ-col organ-col-exercises">
+          <div className="organ-col-inner">
+            <div className="organ-essentials-header">
+              <div className="organ-essentials-title">Breathing Exercises</div>
+              <p className="organ-essentials-lede">{BREATH_CONTROL_ESSENTIAL_SUMMARY}</p>
+            </div>
 
-          <div className="organ-essentials-header">
-            <div className="organ-essentials-title">Breathing Exercises</div>
-            <p className="organ-essentials-lede">{BREATH_CONTROL_ESSENTIAL_SUMMARY}</p>
-          </div>
+            <div className="organ-exercises">
+              {BREATH_CONTROL_ESSENTIAL_FIVE.map((ex: BreathEssentialItem, i) => {
+                const open     = expandedEx.has(i)
+                const isGuided = ex.guideId === 'sss-hiss'
+                return (
+                  <div key={i} className={'organ-exercise-card' + (open ? ' open' : '')}>
+                    <button
+                      type="button"
+                      className="organ-exercise-trigger"
+                      onClick={() => toggleEx(i)}
+                      aria-expanded={open}
+                    >
+                      <span className="organ-exercise-name">{ex.title}</span>
+                      <span className={'organ-disclosure-chevron' + (open ? ' open' : '')}>›</span>
+                    </button>
 
-          <div className="organ-exercises">
-            {BREATH_CONTROL_ESSENTIAL_FIVE.map((ex: BreathEssentialItem, i) => {
-              const open     = expandedEx.has(i)
-              const isGuided = ex.guideId === 'sss-hiss'
-              return (
-                <div key={i} className={'organ-exercise-card' + (open ? ' open' : '')}>
-                  <button
-                    type="button"
-                    className="organ-exercise-trigger"
-                    onClick={() => toggleEx(i)}
-                    aria-expanded={open}
-                  >
-                    <span className="organ-exercise-name">{ex.title}</span>
-                    <span className={'organ-disclosure-chevron' + (open ? ' open' : '')}>›</span>
-                  </button>
-
-                  {open && (
-                    <div className="organ-exercise-body">
-                      <ul className="organ-exercise-steps">
-                        {ex.steps.map((step, si) => (
-                          <li key={si} className="organ-exercise-step">{step}</li>
-                        ))}
-                      </ul>
-                      {isGuided && (
-                        <>
-                          <div className="organ-exercise-chart-header">Progress — daily best</div>
-                          <HissChart sessions={hissSessions} />
+                    {open && (
+                      <div className="organ-exercise-body">
+                        <ul className="organ-exercise-steps">
+                          {ex.steps.map((step, si) => (
+                            <li key={si} className="organ-exercise-step">{step}</li>
+                          ))}
+                        </ul>
+                        {isGuided && (
                           <button
                             type="button"
                             className="organ-exercise-start-btn"
@@ -102,17 +106,48 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
                           >
                             Start Exercise
                           </button>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           </div>
-
         </div>
-      </aside>
+
+        {/* ── Right column: progress tracker ──────────────────────────── */}
+        <div className="organ-col organ-col-tracker">
+          <div className="organ-col-inner">
+            <div className="organ-tracker-heading">
+              <span className="organ-tracker-heading-title">Progress Tracker</span>
+              <span className="organ-tracker-heading-sub">Sustained SSS Hiss</span>
+            </div>
+
+            {trackerLoading ? (
+              <p className="organ-tracker-loading">Loading…</p>
+            ) : (
+              <>
+                <div className="organ-tracker-section">
+                  <div className="organ-tracker-section-label">Daily best</div>
+                  <div className="organ-tracker-section-sub">
+                    Best duration per calendar day — shows the week-over-week trend.
+                  </div>
+                  <ProgressChart sessions={dailySessions} targetSec={45} unit="s" />
+                </div>
+
+                <div className="organ-tracker-section">
+                  <div className="organ-tracker-section-label">All attempts</div>
+                  <div className="organ-tracker-section-sub">
+                    Every rep in order — dashed lines mark where one day ends and the next begins.
+                  </div>
+                  <AttemptsChart attempts={allAttempts} targetSec={45} unit="s" />
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
     </>
   )
 }

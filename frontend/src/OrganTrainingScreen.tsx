@@ -16,7 +16,7 @@ export default function OrganTrainingScreen({ onHome }: Props) {
         </div>
       </header>
 
-      <div className="graph-container organ-training-only">
+      <div className="graph-container organ-training-only" style={{ overflow: 'hidden' }}>
         <OrganTrainingPanel />
       </div>
     </div>
