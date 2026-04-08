@@ -11,16 +11,62 @@ import ProgressChart, { AttemptsChart, type ProgressSession, type AttemptRecord 
 
 const API = 'http://localhost:8765'
 
+// ─── Inline guide for Staccato "Ha" Pulses ───────────────────────────────────
+function HaPulsesInline({ steps, onExit }: { steps: string[]; onExit: () => void }) {
+  return (
+    <div className="ha-pulses-guide">
+      <div className="ha-pulses-header">
+        <span className="ha-pulses-emoji">💥</span>
+        <div>
+          <div className="ha-pulses-subtitle">Belly-driven bursts</div>
+          <div className="ha-pulses-tip">Each &ldquo;ha&rdquo; comes from a quick belly contraction — not the throat.</div>
+        </div>
+      </div>
+
+      <ol className="ha-pulses-steps">
+        {steps.map((step, i) => (
+          <li key={i} className="ha-pulses-step">{step}</li>
+        ))}
+      </ol>
+
+      <div className="ha-pulses-cue-grid">
+        <div className="ha-pulses-cue">
+          <span className="ha-pulses-cue-icon">🫁</span>
+          <span>Full breath in</span>
+        </div>
+        <div className="ha-pulses-cue">
+          <span className="ha-pulses-cue-icon">💨</span>
+          <span>ha · ha · ha · ha</span>
+        </div>
+        <div className="ha-pulses-cue">
+          <span className="ha-pulses-cue-icon">🔄</span>
+          <span>Quick mouth recovery breath</span>
+        </div>
+        <div className="ha-pulses-cue">
+          <span className="ha-pulses-cue-icon">🔁</span>
+          <span>Repeat 4–6 sets</span>
+        </div>
+      </div>
+
+      <button type="button" className="ha-pulses-exit-btn" onClick={onExit}>
+        Exit Exercise
+      </button>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 type Props = {
   panelWidthPx?: number
 }
 
 export default function OrganTrainingPanel({ panelWidthPx }: Props) {
-  const [expandedEx, setExpandedEx]     = useState<Set<number>>(new Set())
-  const [exerciseActive, setExerciseActive] = useState(false)
-  const [showCamera, setShowCamera]     = useState(false)
-  const [showTracker, setShowTracker]   = useState(false)
-  const [sidebarOpen, setSidebarOpen]   = useState(true)
+  const [expandedEx, setExpandedEx]       = useState<Set<number>>(new Set())
+  const [activeExercise, setActiveExercise] = useState<string | null>(null)
+  const [showCamera, setShowCamera]       = useState(false)
+  const [showTracker, setShowTracker]     = useState(false)
+  const [sidebarOpen, setSidebarOpen]     = useState(true)
 
   const [dailySessions, setDailySessions]   = useState<ProgressSession[]>([])
   const [allAttempts, setAllAttempts]       = useState<AttemptRecord[]>([])
@@ -58,8 +104,14 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
     })
   }
 
+  function startExercise(guideId: string) {
+    setActiveExercise(guideId)
+    setShowCamera(false)
+    setShowTracker(false)
+  }
+
   function exitExercise() {
-    setExerciseActive(false)
+    setActiveExercise(null)
     setShowCamera(false)
   }
 
@@ -91,8 +143,8 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
           <div className="organ-exercises">
             {BREATH_CONTROL_ESSENTIAL_FIVE.map((ex: BreathEssentialItem, i) => {
               const open     = expandedEx.has(i)
-              const isGuided = ex.guideId === 'sss-hiss'
-              const isActive = isGuided && exerciseActive
+              const isGuided = !!ex.guideId
+              const isActive = !!ex.guideId && ex.guideId === activeExercise
               return (
                 <div
                   key={i}
@@ -120,11 +172,11 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
                           <li key={si} className="organ-exercise-step">{step}</li>
                         ))}
                       </ul>
-                      {isGuided && !exerciseActive && (
+                      {isGuided && !activeExercise && (
                         <button
                           type="button"
                           className="organ-exercise-start-btn"
-                          onClick={() => setExerciseActive(true)}
+                          onClick={() => startExercise(ex.guideId!)}
                         >
                           Start Exercise
                         </button>
@@ -149,7 +201,7 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
 
       {/* ── Right area: active exercise or placeholder ──────────────────── */}
       <div className="organ-col-main">
-        {!exerciseActive && (
+        {!activeExercise && (
           <div className="organ-main-placeholder">
             <p className="organ-placeholder-text">
               Open an exercise above to begin.
@@ -157,54 +209,64 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
           </div>
         )}
 
-        {exerciseActive && (
-          <div className="organ-active-area">
-            {/* Header bar: title + camera toggle */}
-            <div className="organ-active-header">
-              <span className="organ-active-title">Sustained &ldquo;SSS&rdquo; Hiss</span>
-              <button
-                type="button"
-                className={`organ-camera-toggle ${showCamera ? 'active' : ''}`}
-                onClick={() => setShowCamera(v => !v)}
-              >
-                {showCamera ? '✕ Hide camera' : '📷 Watch shoulders'}
-              </button>
-            </div>
-
-            {/* Body: guide + optional camera side-panel */}
-            <div className={`organ-active-body${showCamera ? ' with-camera' : ''}`}>
-              <div className="organ-guide-wrap">
-                <SSSHissGuide
-                  inline
-                  onClose={exitExercise}
-                  onSessionSaved={() => { fetchHissHistory(); setShowTracker(false) }}
-                />
+        {activeExercise && (() => {
+          const activeEx = BREATH_CONTROL_ESSENTIAL_FIVE.find(e => e.guideId === activeExercise)
+          return (
+            <div className="organ-active-area">
+              {/* Header bar: title + camera toggle */}
+              <div className="organ-active-header">
+                <span className="organ-active-title">{activeEx?.title}</span>
+                <button
+                  type="button"
+                  className={`organ-camera-toggle ${showCamera ? 'active' : ''}`}
+                  onClick={() => setShowCamera(v => !v)}
+                >
+                  {showCamera ? '✕ Hide camera' : '📷 Watch shoulders'}
+                </button>
               </div>
 
-              {showCamera && (
-                <div className="organ-camera-wrap">
-                  <CameraObservationLab
-                    embedded
-                    onHome={() => setShowCamera(false)}
-                    onClose={() => setShowCamera(false)}
-                  />
+              {/* Body: guide + optional camera side-panel */}
+              <div className={`organ-active-body${showCamera ? ' with-camera' : ''}`}>
+                <div className="organ-guide-wrap">
+                  {activeExercise === 'sss-hiss' && (
+                    <SSSHissGuide
+                      inline
+                      onClose={exitExercise}
+                      onSessionSaved={() => { fetchHissHistory(); setShowTracker(false) }}
+                    />
+                  )}
+                  {activeExercise === 'ha-pulses' && activeEx && (
+                    <HaPulsesInline steps={activeEx.steps} onExit={exitExercise} />
+                  )}
                 </div>
-              )}
+
+                {showCamera && (
+                  <div className="organ-camera-wrap">
+                    <CameraObservationLab
+                      embedded
+                      onHome={() => setShowCamera(false)}
+                      onClose={() => setShowCamera(false)}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
       </div>
 
-      {/* ── Progress FAB (bottom-right of layout) ──────────────────────── */}
-      <button
-        type="button"
-        className={`progress-fab${showTracker ? ' progress-fab-active' : ''}`}
-        onClick={() => setShowTracker(v => !v)}
-        aria-label="Toggle progress tracker"
-      >
-        <span className="progress-fab-icon">↗</span>
-        <span className="progress-fab-label">Progress</span>
-      </button>
+      {/* ── Progress FAB — only relevant for SSS Hiss (has session data) ── */}
+      {activeExercise !== 'ha-pulses' && (
+        <button
+          type="button"
+          className={`progress-fab${showTracker ? ' progress-fab-active' : ''}`}
+          onClick={() => setShowTracker(v => !v)}
+          aria-label="Toggle progress tracker"
+        >
+          <span className="progress-fab-icon">↗</span>
+          <span className="progress-fab-label">Progress</span>
+        </button>
+      )}
 
       {/* ── Progress drawer overlay ─────────────────────────────────────── */}
       {showTracker && (

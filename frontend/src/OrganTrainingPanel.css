@@ -1032,6 +1032,93 @@
   padding: 8px 0;
 }
 
+/* ── Staccato "Ha" Pulses inline guide ──────────────────────────────── */
+.ha-pulses-guide {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px;
+  height: 100%;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.ha-pulses-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+.ha-pulses-emoji {
+  font-size: 2.2rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.ha-pulses-subtitle {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #e8a84a;
+  margin-bottom: 4px;
+}
+.ha-pulses-tip {
+  font-size: 0.85rem;
+  color: #9999bb;
+  line-height: 1.45;
+}
+
+.ha-pulses-steps {
+  margin: 0;
+  padding: 0 0 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ha-pulses-step {
+  font-size: 0.88rem;
+  color: #c8c8e8;
+  line-height: 1.5;
+}
+
+.ha-pulses-cue-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.ha-pulses-cue {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #14142a;
+  border: 1px solid #252545;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.82rem;
+  color: #b0b0d0;
+}
+.ha-pulses-cue-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.ha-pulses-exit-btn {
+  align-self: flex-start;
+  margin-top: auto;
+  padding: 8px 18px;
+  border-radius: 7px;
+  border: 1px solid #333355;
+  background: transparent;
+  color: #8888aa;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.ha-pulses-exit-btn:hover {
+  background: #1e1e3a;
+  color: #ccccee;
+}
+
 /* Keep organ-training-only working for screen container */
 .app .graph-container.organ-training-only {
   overflow: hidden;

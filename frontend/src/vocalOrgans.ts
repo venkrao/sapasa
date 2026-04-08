@@ -65,6 +65,7 @@ export const BREATH_CONTROL_ESSENTIAL_FIVE: BreathEssentialItem[] = [
   },
   {
     title: 'Staccato "Ha" Pulses',
+    guideId: 'ha-pulses',
     steps: [
       'Take a full breath, then fire short sharp "ha-ha-ha-ha" bursts on a single pitch.',
       'Each "ha" must be driven by a quick belly contraction — not the throat.',
