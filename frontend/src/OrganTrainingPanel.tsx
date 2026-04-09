@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import './OrganTrainingPanel.css'
 import {
   BREATH_CONTROL_ESSENTIAL_FIVE,
@@ -7,86 +7,186 @@ import {
 } from './vocalOrgans'
 import SSSHissGuide from './SSSHissGuide'
 import CameraObservationLab from './CameraObservationLab'
-import ProgressChart, { AttemptsChart, type ProgressSession, type AttemptRecord } from './ProgressChart'
+import ProgressChart, { AttemptsChart, DailyCountChart, type ProgressSession, type AttemptRecord } from './ProgressChart'
 
 const API = 'http://localhost:8765'
 
-// ─── Inline guide for Staccato "Ha" Pulses ───────────────────────────────────
-function HaPulsesInline({ steps, onExit }: { steps: string[]; onExit: () => void }) {
+// Emoji for each simple exercise
+const EXERCISE_EMOJIS: Record<string, string> = {
+  'belly-breathing': '🫁',
+  '4-8-breathing':  '🔁',
+  'straw-sovt':     '🪄',
+  'ha-pulses':      '💥',
+}
+
+function fmtTimer(seconds: number): string {
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return m > 0 ? `${m}:${s.toString().padStart(2, '0')}` : `${s}s`
+}
+
+// ─── Generic timed inline guide ──────────────────────────────────────────────
+// Used for belly-breathing, 4-8-breathing, straw-sovt, and ha-pulses.
+function TimedExerciseInline({
+  exerciseId,
+  title,
+  steps,
+  cues,
+  onDone,
+  onExit,
+}: {
+  exerciseId: string
+  title: string
+  steps: string[]
+  /** Optional 2×2 quick-cue grid items */
+  cues?: { icon: string; label: string }[]
+  onDone: (durationSec: number) => void
+  onExit: () => void
+}) {
+  const [elapsed, setElapsed]   = useState(0)
+  const [repCount, setRepCount] = useState(0)
+  const startRef = useRef(Date.now())
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startRef.current) / 1000))
+    }, 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  function handleDone() {
+    const dur = (Date.now() - startRef.current) / 1000
+    onDone(dur)
+    // Reset timer for next rep
+    startRef.current = Date.now()
+    setElapsed(0)
+    setRepCount(c => c + 1)
+  }
+
+  const emoji = EXERCISE_EMOJIS[exerciseId] ?? '🎵'
+
   return (
-    <div className="ha-pulses-guide">
-      <div className="ha-pulses-header">
-        <span className="ha-pulses-emoji">💥</span>
-        <div>
-          <div className="ha-pulses-subtitle">Belly-driven bursts</div>
-          <div className="ha-pulses-tip">Each &ldquo;ha&rdquo; comes from a quick belly contraction — not the throat.</div>
+    <div className="timed-ex-guide">
+      <div className="timed-ex-header">
+        <span className="timed-ex-emoji">{emoji}</span>
+        <div className="timed-ex-timer-block">
+          <div className="timed-ex-timer">{fmtTimer(elapsed)}</div>
+          {repCount > 0 && (
+            <div className="timed-ex-rep-count">{repCount} done this session</div>
+          )}
         </div>
       </div>
 
-      <ol className="ha-pulses-steps">
+      <ol className="timed-ex-steps">
         {steps.map((step, i) => (
-          <li key={i} className="ha-pulses-step">{step}</li>
+          <li key={i} className="timed-ex-step">{step}</li>
         ))}
       </ol>
 
-      <div className="ha-pulses-cue-grid">
-        <div className="ha-pulses-cue">
-          <span className="ha-pulses-cue-icon">🫁</span>
-          <span>Full breath in</span>
+      {cues && cues.length > 0 && (
+        <div className="timed-ex-cue-grid">
+          {cues.map((c, i) => (
+            <div key={i} className="timed-ex-cue">
+              <span className="timed-ex-cue-icon">{c.icon}</span>
+              <span>{c.label}</span>
+            </div>
+          ))}
         </div>
-        <div className="ha-pulses-cue">
-          <span className="ha-pulses-cue-icon">💨</span>
-          <span>ha · ha · ha · ha</span>
-        </div>
-        <div className="ha-pulses-cue">
-          <span className="ha-pulses-cue-icon">🔄</span>
-          <span>Quick mouth recovery breath</span>
-        </div>
-        <div className="ha-pulses-cue">
-          <span className="ha-pulses-cue-icon">🔁</span>
-          <span>Repeat 4–6 sets</span>
-        </div>
-      </div>
+      )}
 
-      <button type="button" className="ha-pulses-exit-btn" onClick={onExit}>
-        Exit Exercise
-      </button>
+      <div className="timed-ex-actions">
+        <button type="button" className="timed-ex-done-btn" onClick={handleDone}>
+          ✓ Mark Done
+        </button>
+        <button type="button" className="timed-ex-exit-btn" onClick={onExit}>
+          Exit
+        </button>
+      </div>
     </div>
   )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Cue grids for exercises that benefit from them
+const HA_CUES = [
+  { icon: '🫁', label: 'Full breath in' },
+  { icon: '💨', label: 'ha · ha · ha · ha' },
+  { icon: '🔄', label: 'Quick mouth recovery' },
+  { icon: '🔁', label: 'Repeat 4–6 sets' },
+]
+
 type Props = {
   panelWidthPx?: number
 }
 
+type DrawerData = {
+  daily: ProgressSession[]
+  raw:   AttemptRecord[]
+}
+
 export default function OrganTrainingPanel({ panelWidthPx }: Props) {
-  const [expandedEx, setExpandedEx]       = useState<Set<number>>(new Set())
+  const [expandedEx, setExpandedEx]         = useState<Set<number>>(new Set())
   const [activeExercise, setActiveExercise] = useState<string | null>(null)
-  const [showCamera, setShowCamera]       = useState(false)
-  const [showTracker, setShowTracker]     = useState(false)
-  const [sidebarOpen, setSidebarOpen]     = useState(true)
+  const [showCamera, setShowCamera]         = useState(false)
+  const [showTracker, setShowTracker]       = useState(false)
+  const [sidebarOpen, setSidebarOpen]       = useState(true)
 
-  const [dailySessions, setDailySessions]   = useState<ProgressSession[]>([])
-  const [allAttempts, setAllAttempts]       = useState<AttemptRecord[]>([])
-  const [trackerLoading, setTrackerLoading] = useState(true)
+  // Sidebar completion-count badges (total sessions per exercise)
+  const [completionCounts, setCompletionCounts] = useState<Record<string, number>>({})
 
-  const fetchHissHistory = useCallback(() => {
-    setTrackerLoading(true)
-    Promise.all([
-      fetch(`${API}/api/exercise-sessions?exerciseId=sss-hiss`).then(r => r.json()),
-      fetch(`${API}/api/exercise-sessions?exerciseId=sss-hiss&raw=true`).then(r => r.json()),
-    ])
-      .then(([daily, raw]: [ProgressSession[], AttemptRecord[]]) => {
-        setDailySessions(daily)
-        setAllAttempts(raw)
-      })
-      .catch(() => {})
-      .finally(() => setTrackerLoading(false))
+  // Progress drawer content
+  const [drawerData, setDrawerData]     = useState<DrawerData>({ daily: [], raw: [] })
+  const [drawerLoading, setDrawerLoading] = useState(false)
+
+  // ── Fetch sidebar counts for all guided exercises ──────────────────────────
+  const fetchAllCounts = useCallback(() => {
+    const ids = BREATH_CONTROL_ESSENTIAL_FIVE
+      .map(e => e.guideId)
+      .filter(Boolean) as string[]
+
+    Promise.all(
+      ids.map(id =>
+        fetch(`${API}/api/exercise-sessions?exerciseId=${id}&raw=true`)
+          .then(r => r.json())
+          .then((rows: AttemptRecord[]) => [id, rows.length] as const)
+          .catch(() => [id, 0] as const)
+      )
+    ).then(pairs => {
+      const counts: Record<string, number> = {}
+      for (const [id, n] of pairs) counts[id] = n
+      setCompletionCounts(counts)
+    })
   }, [])
 
-  useEffect(() => { fetchHissHistory() }, [fetchHissHistory])
+  useEffect(() => { fetchAllCounts() }, [fetchAllCounts])
+
+  // ── Fetch drawer data for the given exercise ───────────────────────────────
+  const fetchDrawerData = useCallback((exerciseId: string) => {
+    setDrawerLoading(true)
+    if (exerciseId === 'sss-hiss') {
+      Promise.all([
+        fetch(`${API}/api/exercise-sessions?exerciseId=sss-hiss`).then(r => r.json()),
+        fetch(`${API}/api/exercise-sessions?exerciseId=sss-hiss&raw=true`).then(r => r.json()),
+      ])
+        .then(([daily, raw]: [ProgressSession[], AttemptRecord[]]) =>
+          setDrawerData({ daily, raw })
+        )
+        .catch(() => {})
+        .finally(() => setDrawerLoading(false))
+    } else {
+      fetch(`${API}/api/exercise-sessions?exerciseId=${exerciseId}&raw=true`)
+        .then(r => r.json())
+        .then((raw: AttemptRecord[]) => setDrawerData({ daily: [], raw }))
+        .catch(() => {})
+        .finally(() => setDrawerLoading(false))
+    }
+  }, [])
+
+  // Reload drawer whenever it opens (or active exercise changes while open)
+  useEffect(() => {
+    if (showTracker && activeExercise) fetchDrawerData(activeExercise)
+  }, [showTracker, activeExercise, fetchDrawerData])
 
   // Close tracker on Escape
   useEffect(() => {
@@ -95,6 +195,20 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [showTracker])
+
+  // ── Save a completed session ───────────────────────────────────────────────
+  const saveSession = useCallback((exerciseId: string, durationSec: number) => {
+    fetch(`${API}/api/exercise-sessions`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ exerciseId, durationSec }),
+    })
+      .then(() => {
+        fetchAllCounts()
+        if (showTracker) fetchDrawerData(exerciseId)
+      })
+      .catch(() => {})
+  }, [fetchAllCounts, fetchDrawerData, showTracker])
 
   function toggleEx(i: number) {
     setExpandedEx(prev => {
@@ -115,6 +229,11 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
     setShowCamera(false)
   }
 
+  // ── Drawer label ───────────────────────────────────────────────────────────
+  const drawerExLabel = activeExercise
+    ? (BREATH_CONTROL_ESSENTIAL_FIVE.find(e => e.guideId === activeExercise)?.title ?? activeExercise)
+    : 'SSS Hiss'
+
   return (
     <div
       className={`organ-layout-new${sidebarOpen ? '' : ' sidebar-collapsed'}`}
@@ -122,7 +241,6 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
     >
       {/* ── Left column: exercise list ──────────────────────────────────── */}
       <div className="organ-col-left">
-        {/* Collapse/expand toggle — sits on the right edge of the column */}
         <button
           type="button"
           className="sidebar-toggle"
@@ -145,6 +263,7 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
               const open     = expandedEx.has(i)
               const isGuided = !!ex.guideId
               const isActive = !!ex.guideId && ex.guideId === activeExercise
+              const count    = ex.guideId ? (completionCounts[ex.guideId] ?? 0) : 0
               return (
                 <div
                   key={i}
@@ -162,6 +281,9 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
                   >
                     <span className="organ-exercise-name">{ex.title}</span>
                     {isActive && <span className="ex-running-badge">Active</span>}
+                    {!isActive && count > 0 && (
+                      <span className="ex-count-badge">{count}×</span>
+                    )}
                     <span className={'organ-disclosure-chevron' + (open ? ' open' : '')}>›</span>
                   </button>
 
@@ -213,7 +335,7 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
           const activeEx = BREATH_CONTROL_ESSENTIAL_FIVE.find(e => e.guideId === activeExercise)
           return (
             <div className="organ-active-area">
-              {/* Header bar: title + camera toggle */}
+              {/* Header bar */}
               <div className="organ-active-header">
                 <span className="organ-active-title">{activeEx?.title}</span>
                 <button
@@ -225,19 +347,42 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
                 </button>
               </div>
 
-              {/* Body: guide + optional camera side-panel */}
+              {/* Body: guide + optional camera */}
               <div className={`organ-active-body${showCamera ? ' with-camera' : ''}`}>
                 <div className="organ-guide-wrap">
+
                   {activeExercise === 'sss-hiss' && (
                     <SSSHissGuide
                       inline
                       onClose={exitExercise}
-                      onSessionSaved={() => { fetchHissHistory(); setShowTracker(false) }}
+                      onSessionSaved={() => {
+                        fetchAllCounts()
+                        if (showTracker) fetchDrawerData('sss-hiss')
+                      }}
                     />
                   )}
+
                   {activeExercise === 'ha-pulses' && activeEx && (
-                    <HaPulsesInline steps={activeEx.steps} onExit={exitExercise} />
+                    <TimedExerciseInline
+                      exerciseId="ha-pulses"
+                      title={activeEx.title}
+                      steps={activeEx.steps}
+                      cues={HA_CUES}
+                      onDone={dur => saveSession('ha-pulses', dur)}
+                      onExit={exitExercise}
+                    />
                   )}
+
+                  {activeEx && !['sss-hiss', 'ha-pulses'].includes(activeExercise) && (
+                    <TimedExerciseInline
+                      exerciseId={activeExercise}
+                      title={activeEx.title}
+                      steps={activeEx.steps}
+                      onDone={dur => saveSession(activeExercise, dur)}
+                      onExit={exitExercise}
+                    />
+                  )}
+
                 </div>
 
                 {showCamera && (
@@ -255,8 +400,8 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
         })()}
       </div>
 
-      {/* ── Progress FAB — only relevant for SSS Hiss (has session data) ── */}
-      {activeExercise !== 'ha-pulses' && (
+      {/* ── Progress FAB ────────────────────────────────────────────────── */}
+      {activeExercise && (
         <button
           type="button"
           className={`progress-fab${showTracker ? ' progress-fab-active' : ''}`}
@@ -281,7 +426,7 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
             <div className="progress-drawer-header">
               <div className="organ-tracker-heading">
                 <span className="organ-tracker-heading-title">Progress Tracker</span>
-                <span className="organ-tracker-heading-sub">Sustained SSS Hiss</span>
+                <span className="organ-tracker-heading-sub">{drawerExLabel}</span>
               </div>
               <button
                 className="progress-drawer-close"
@@ -293,24 +438,42 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
               </button>
             </div>
 
-            {trackerLoading ? (
+            {drawerLoading ? (
               <p className="organ-tracker-loading">Loading…</p>
-            ) : (
+            ) : activeExercise === 'sss-hiss' ? (
+              /* SSS Hiss: duration-based charts */
               <>
                 <div className="organ-tracker-section">
                   <div className="organ-tracker-section-label">Daily best</div>
                   <div className="organ-tracker-section-sub">
-                    Best duration per calendar day — shows the week-over-week trend.
+                    Best hold duration per calendar day.
                   </div>
-                  <ProgressChart sessions={dailySessions} targetSec={45} unit="s" />
+                  <ProgressChart sessions={drawerData.daily} targetSec={45} unit="s" />
                 </div>
-
                 <div className="organ-tracker-section">
                   <div className="organ-tracker-section-label">All attempts</div>
                   <div className="organ-tracker-section-sub">
-                    Every rep in order — dashed lines mark where one day ends and the next begins.
+                    Every rep in order — dashed lines mark day boundaries.
                   </div>
-                  <AttemptsChart attempts={allAttempts} targetSec={45} unit="s" />
+                  <AttemptsChart attempts={drawerData.raw} targetSec={45} unit="s" />
+                </div>
+              </>
+            ) : (
+              /* Other exercises: completion count charts */
+              <>
+                <div className="organ-tracker-section">
+                  <div className="organ-tracker-section-label">Completions this month</div>
+                  <div className="organ-tracker-section-sub">
+                    Number of times you marked this exercise done per day.
+                  </div>
+                  <DailyCountChart attempts={drawerData.raw} />
+                </div>
+                <div className="organ-tracker-section organ-tracker-total-row">
+                  <div className="organ-tracker-section-label">Total this month</div>
+                  <div className="organ-tracker-total-value">
+                    {drawerData.raw.length}
+                    <span className="organ-tracker-total-unit"> sessions</span>
+                  </div>
                 </div>
               </>
             )}

@@ -43,6 +43,9 @@ export default function PitchMonitorScreen({ onHome }: Props) {
   const [octaveShift, setOctaveShift] = useState(0)
   const octaveShiftRef = useRef(0)
   const [listening, setListening] = useState(true)
+  const [showHoldAnnotations, setShowHoldAnnotations] = useState(false)
+  const [loopExercise, setLoopExercise] = useState(false)
+  const loopExerciseRef = useRef(false)
 
   // effectiveSaHz is what everything uses — shruti × octave multiplier.
   const effectiveSaHz = saHz * Math.pow(2, octaveShift)
@@ -240,6 +243,9 @@ export default function PitchMonitorScreen({ onHome }: Props) {
   useEffect(() => {
     flatSequenceRef.current = flatSequence
   }, [selectedRagaId, selectedExerciseId])
+  useEffect(() => {
+    loopExerciseRef.current = loopExercise
+  }, [loopExercise])
 
   function startExercise() {
     if (flatSequenceRef.current.length === 0) return
@@ -305,8 +311,15 @@ export default function PitchMonitorScreen({ onHome }: Props) {
 
         const next = idx + 1
         if (next >= seq.length) {
-          setExerciseActive(false)
-          setExpectedIndex(seq.length - 1)
+          if (loopExerciseRef.current) {
+            // Loop mode: restart from the beginning without stopping
+            expectedIndexRef.current = 0
+            lastMatchedExpectedRef.current = -1
+            setExpectedIndex(0)
+          } else {
+            setExerciseActive(false)
+            setExpectedIndex(seq.length - 1)
+          }
         } else {
           expectedIndexRef.current = next
           setExpectedIndex(next)
@@ -338,6 +351,14 @@ export default function PitchMonitorScreen({ onHome }: Props) {
             title={listening ? 'Stop listening' : 'Start listening'}
           >
             {listening ? 'Pause' : 'Listen'}
+          </button>
+          <button
+            className={'listen-button ' + (showHoldAnnotations ? 'on' : 'off')}
+            onClick={() => setShowHoldAnnotations(v => !v)}
+            type="button"
+            title={showHoldAnnotations ? 'Hide hold duration annotations' : 'Show how long each in-tune note was held'}
+          >
+            {showHoldAnnotations ? '⏱ Holds on' : '⏱ Holds'}
           </button>
           <select className="shruti-select" value={saHz} onChange={e => onShrutiChange(Number(e.target.value))}>
             {SHRUTI_LIST.map(s => (
@@ -379,6 +400,7 @@ export default function PitchMonitorScreen({ onHome }: Props) {
             onMount={onGraphMount}
             allowedSwaras={exerciseActive ? allowedSwaras : null}
             expectedSwara={exerciseActive ? expectedSwara : null}
+            showHoldAnnotations={showHoldAnnotations}
           />
         </div>
 
@@ -432,6 +454,8 @@ export default function PitchMonitorScreen({ onHome }: Props) {
           canStart={canStart}
           onStart={startExercise}
           onStop={stopExercise}
+          loopExercise={loopExercise}
+          onToggleLoop={() => setLoopExercise(v => !v)}
           saHz={effectiveSaHz}
           onReferencePlaybackStart={onReferencePlaybackStart}
           selectedRagaId={selectedRagaId}

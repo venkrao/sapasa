@@ -321,3 +321,40 @@
   margin: 0 4px;
 }
 
+/* ── Loop toggle + sing/stop row ─────────────────────────────────────── */
+.exercise-sing-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.exercise-loop-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid #2e2e48;
+  background: transparent;
+  color: #8888aa;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.exercise-loop-btn:hover {
+  background: #1e1e3a;
+  color: #ccccee;
+  border-color: #44447a;
+}
+.exercise-loop-btn.active {
+  background: #1a2a3a;
+  color: #60a5fa;
+  border-color: #2255aa;
+}
+.exercise-loop-btn.active:hover {
+  background: #1e3050;
+  color: #93c5fd;
+}
+

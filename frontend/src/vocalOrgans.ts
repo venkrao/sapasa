@@ -37,6 +37,7 @@ export type BreathEssentialItem = {
 export const BREATH_CONTROL_ESSENTIAL_FIVE: BreathEssentialItem[] = [
   {
     title: 'Belly Breathing Reset (4-in / 4-out)',
+    guideId: 'belly-breathing',
     steps: [
       'Sit or stand tall; place one hand flat on your belly.',
       'Inhale through your nose for 4 counts — belly pushes out, chest stays still, shoulders stay down.',
@@ -56,6 +57,7 @@ export const BREATH_CONTROL_ESSENTIAL_FIVE: BreathEssentialItem[] = [
   },
   {
     title: '4-in / 8-out (then extend)',
+    guideId: '4-8-breathing',
     steps: [
       'Inhale through your nose for 4 counts.',
       'Exhale on a sustained "f" or "v" sound for 8 counts.',
@@ -75,6 +77,7 @@ export const BREATH_CONTROL_ESSENTIAL_FIVE: BreathEssentialItem[] = [
   },
   {
     title: 'Singing Through a Straw (SOVT)',
+    guideId: 'straw-sovt',
     steps: [
       'Take a full breath through nose + mouth (lips already around the straw).',
       'Hum or sing a simple 5-note scale through a regular drinking straw.',

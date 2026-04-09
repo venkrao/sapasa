@@ -186,6 +186,133 @@ export default function ProgressChart({ sessions, targetSec = 45, unit = 's' }: 
   )
 }
 
+// ── Daily completions count (bar chart) ──────────────────────────────────────
+
+type DailyCountProps = {
+  attempts: AttemptRecord[]
+}
+
+export function DailyCountChart({ attempts }: DailyCountProps) {
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
+
+  if (attempts.length === 0) {
+    return (
+      <p className="prog-empty">
+        No completions yet — mark an exercise done to start tracking.
+      </p>
+    )
+  }
+
+  // Group attempts by calendar day → count
+  const dayMap = new Map<string, number>()
+  for (const a of attempts) {
+    const day = a.ts.slice(0, 10)
+    dayMap.set(day, (dayMap.get(day) ?? 0) + 1)
+  }
+  const days = Array.from(dayMap.entries())
+    .map(([day, count]) => ({ day, count }))
+    .sort((a, b) => a.day.localeCompare(b.day))
+
+  const maxCount  = Math.max(...days.map(d => d.count), 3)
+  const yMax      = maxCount + 1
+
+  const BAR_W = 28
+  const GAP   = 8
+  const minW  = 480
+  const innerW = Math.max(minW - PAD_L - PAD_R, days.length * (BAR_W + GAP))
+  const totalW = PAD_L + innerW + PAD_R
+  const svgH   = CHART_H + PAD_T + PAD_B
+
+  const yOf   = (v: number) => PAD_T + CHART_H - (v / yMax) * CHART_H
+  const xOfBar = (i: number) => PAD_L + i * (BAR_W + GAP)
+
+  // Y ticks: 0, mid, max
+  const mid = Math.round(maxCount / 2)
+  const yTicks = Array.from(new Set([0, mid, maxCount])).sort((a, b) => a - b)
+
+  const hovered = hoveredIdx !== null ? days[hoveredIdx] : null
+
+  return (
+    <div className="prog-wrap">
+      <div className="prog-scroll">
+        <svg
+          className="prog-svg"
+          width={totalW}
+          height={svgH}
+          onMouseLeave={() => setHoveredIdx(null)}
+        >
+          {/* Y gridlines */}
+          {yTicks.map(t => (
+            <g key={t}>
+              <line
+                x1={PAD_L} y1={yOf(t)} x2={PAD_L + innerW} y2={yOf(t)}
+                className="prog-grid"
+              />
+              <text x={PAD_L - 5} y={yOf(t) + 4} className="prog-axis-lbl" textAnchor="end">
+                {t}
+              </text>
+            </g>
+          ))}
+
+          {/* Bars */}
+          {days.map((d, i) => {
+            const bx   = xOfBar(i)
+            const by   = yOf(d.count)
+            const bh   = PAD_T + CHART_H - by
+            const isH  = hoveredIdx === i
+            const good = d.count >= 3
+            return (
+              <g key={d.day}>
+                <rect
+                  x={bx} y={by} width={BAR_W} height={Math.max(bh, 2)}
+                  className={good ? 'prog-bar prog-bar-good' : 'prog-bar prog-bar-low'}
+                  opacity={isH ? 1 : 0.75}
+                />
+                {/* Hit area */}
+                <rect
+                  x={bx} y={PAD_T} width={BAR_W} height={CHART_H}
+                  fill="transparent"
+                  style={{ cursor: 'crosshair' }}
+                  onMouseEnter={() => setHoveredIdx(i)}
+                />
+                {/* X-axis date label */}
+                <text
+                  x={bx + BAR_W / 2} y={svgH - 4}
+                  className="prog-axis-lbl prog-month-tick"
+                  textAnchor="middle"
+                >
+                  {fmtDay(d.day).replace(' ', '\u00a0')}
+                </text>
+              </g>
+            )
+          })}
+
+          {/* Tooltip */}
+          {hovered && hoveredIdx !== null && (() => {
+            const tx   = xOfBar(hoveredIdx) + BAR_W / 2
+            const ty   = yOf(hovered.count)
+            const boxW = 60
+            const boxH = 28
+            const bx   = Math.min(Math.max(tx - boxW / 2, PAD_L), totalW - boxW - 2)
+            const by   = Math.max(PAD_T + 2, ty - boxH - 8)
+            return (
+              <g className="prog-tip">
+                <rect x={bx} y={by} width={boxW} height={boxH} rx={4} className="prog-tip-bg" />
+                <text x={bx + boxW / 2} y={by + 10} className="prog-tip-day" textAnchor="middle">
+                  {fmtDay(hovered.day)}
+                </text>
+                <text x={bx + boxW / 2} y={by + 22} className="prog-tip-val" textAnchor="middle">
+                  {hovered.count}×
+                </text>
+              </g>
+            )
+          })()}
+        </svg>
+      </div>
+    </div>
+  )
+}
+
 // ── All-attempts chart ────────────────────────────────────────────────────────
 
 type AttemptsProps = {

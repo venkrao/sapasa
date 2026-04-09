@@ -23,6 +23,9 @@ export type ExercisePanelProps = {
   canStart: boolean
   onStart: () => void
   onStop: () => void
+  /** When true the exercise restarts from step 1 after the last note is matched. */
+  loopExercise?: boolean
+  onToggleLoop?: () => void
 
   /** Shruti Sa in Hz — used for reference playback of the expected note. */
   saHz: number
@@ -43,28 +46,39 @@ const REFERENCE_NOTE_DURATION_SEC = 1.0
 const SWARA_TO_NOTATION: Record<string, string> = {
   Sa: 'S',
   R1: 'R₁',
+  R2: 'R₂',
+  R3: 'R₃',
   G3: 'G₃',
   M1: 'M₁',
+  M2: 'M₂',
   Pa: 'P',
   D1: 'D₁',
+  D2: 'D₂',
+  D3: 'N₂',  // D3 and N2 share the same pitch; displayed as N₂ in context
   N3: 'N₃',
 }
 
 const TARA_NOTATION: Record<string, string> = {
-  R1: 'Ṙ',
-  G3: 'Ġ',
-  M1: 'Ṁ',
+  R1: 'Ṙ₁',
+  R2: 'Ṙ₂',
+  G3: 'Ġ₃',
+  M1: 'Ṁ₁',
   Pa: 'Ṗ',
+  D1: 'Ḋ₁',
+  D3: 'Ṅ₂',
+  N3: 'Ṅ₃',
 }
 
 const MANDRA_NOTATION: Record<string, string> = {
   Sa: 'Ṣ',
-  R1: 'Ṛ',
-  G3: 'Ġ',
-  M1: 'Ṃ',
+  R1: 'Ṛ₁',
+  R2: 'Ṛ₂',
+  G3: 'Ġ₃',
+  M1: 'Ṃ₁',
   Pa: 'Ṗ',
-  D1: 'Ḍ',
-  N3: 'Ṇ',
+  D1: 'Ḍ₁',
+  D3: 'Ṇ₂',
+  N3: 'Ṇ₃',
 }
 
 function notationOf(step: SequenceStep): string {
@@ -90,6 +104,8 @@ export default function ExercisePanel({
   canStart,
   onStart,
   onStop,
+  loopExercise = false,
+  onToggleLoop,
   saHz,
   onReferencePlaybackStart,
   panelWidthPx,
@@ -105,6 +121,10 @@ export default function ExercisePanel({
   const [autoPlayActive, setAutoPlayActive] = useState(false)
   const [autoPlayIndex, setAutoPlayIndex] = useState(-1)
   const autoPlayCancelRef = useRef(false)
+  // Ref so the async auto-play loop always reads the current loop preference
+  // without needing to be recreated when the prop changes.
+  const loopExerciseRef = useRef(loopExercise)
+  useEffect(() => { loopExerciseRef.current = loopExercise }, [loopExercise])
 
   const flatSequenceForPlayback = useMemo(() => deriveFlatSequence(phrases), [phrases])
 
@@ -124,14 +144,22 @@ export default function ExercisePanel({
     setAutoPlayActive(true)
 
     const noteDurationSec = 60 / tempo
+    const beatMs = Math.ceil(noteDurationSec * 1000)
 
-    for (let i = 0; i < flatSequenceForPlayback.length; i++) {
-      if (autoPlayCancelRef.current) break
-      setAutoPlayIndex(i)
-      const hz = sequenceStepHz(flatSequenceForPlayback[i], saHz)
-      await audioRef.current.playNote(hz, noteDurationSec * 0.85, tonePreset)
-      await new Promise<void>(resolve => window.setTimeout(resolve, Math.ceil(noteDurationSec * 1000)))
-    }
+    do {
+      for (let i = 0; i < flatSequenceForPlayback.length; i++) {
+        if (autoPlayCancelRef.current) break
+        setAutoPlayIndex(i)
+        const hz = sequenceStepHz(flatSequenceForPlayback[i], saHz)
+        await audioRef.current.playNote(hz, noteDurationSec * 0.85, tonePreset)
+        await new Promise<void>(resolve => window.setTimeout(resolve, beatMs))
+      }
+      // Brief 2-beat pause between loops so the restart is audible
+      if (!autoPlayCancelRef.current && loopExerciseRef.current) {
+        setAutoPlayIndex(-1)
+        await new Promise<void>(resolve => window.setTimeout(resolve, beatMs * 2))
+      }
+    } while (!autoPlayCancelRef.current && loopExerciseRef.current)
 
     if (!autoPlayCancelRef.current) {
       setAutoPlayActive(false)
@@ -280,21 +308,43 @@ export default function ExercisePanel({
             </div>
           ) : null}
 
-          {/* ── Sing & Test / Stop ── */}
+          {/* ── Sing & Test / Stop + Loop toggle ── */}
           {!exerciseActive && !autoPlayActive ? (
-            <button
-              className="exercise-btn exercise-btn-sing"
-              type="button"
-              onClick={onStart}
-              disabled={!canStart}
-              title={!canStart ? 'Select a raga and exercise first' : 'Sing along and test your ear'}
-            >
-              Sing &amp; Test
-            </button>
+            <div className="exercise-sing-row">
+              <button
+                type="button"
+                className={`exercise-loop-btn${loopExercise ? ' active' : ''}`}
+                onClick={onToggleLoop}
+                title={loopExercise ? 'Loop on — exercise restarts automatically' : 'Loop off — exercise stops after one pass'}
+                aria-pressed={loopExercise}
+              >
+                ↺ {loopExercise ? 'Loop on' : 'Loop'}
+              </button>
+              <button
+                className="exercise-btn exercise-btn-sing"
+                type="button"
+                onClick={onStart}
+                disabled={!canStart}
+                title={!canStart ? 'Select a raga and exercise first' : 'Sing along and test your ear'}
+              >
+                Sing &amp; Test
+              </button>
+            </div>
           ) : exerciseActive ? (
-            <button className="exercise-btn exercise-btn-stop" type="button" onClick={onStop}>
-              Stop
-            </button>
+            <div className="exercise-sing-row">
+              <button
+                type="button"
+                className={`exercise-loop-btn${loopExercise ? ' active' : ''}`}
+                onClick={onToggleLoop}
+                title={loopExercise ? 'Loop on — click to turn off' : 'Loop off — click to turn on'}
+                aria-pressed={loopExercise}
+              >
+                ↺ {loopExercise ? 'Loop on' : 'Loop'}
+              </button>
+              <button className="exercise-btn exercise-btn-stop" type="button" onClick={onStop}>
+                Stop
+              </button>
+            </div>
           ) : autoPlayActive ? (
             <button className="exercise-btn exercise-btn-stop" type="button" onClick={stopAutoPlay}>
               Stop

@@ -65,6 +65,8 @@ interface Props {
   allowedSwaras?: string[] | null
   expectedSwara?: string | null
   onMount: (push: (freq: number | null) => void) => void
+  /** When true, draws brackets + duration labels over every in-tune hold ≥ 0.8 s */
+  showHoldAnnotations?: boolean
 }
 
 export default function PitchGraph({
@@ -73,6 +75,7 @@ export default function PitchGraph({
   allowedSwaras,
   expectedSwara,
   onMount,
+  showHoldAnnotations = false,
 }: Props) {
   const canvasRef           = useRef<HTMLCanvasElement>(null)
   const historyRef          = useRef<Point[]>([])
@@ -96,14 +99,18 @@ export default function PitchGraph({
   }, [paused])
 
   // Exercise-aware emphasis/dimming (optional)
-  const allowedSetRef    = useRef<Set<string> | null>(null)
-  const expectedSwaraRef = useRef<string | null>(expectedSwara ?? null)
+  const allowedSetRef         = useRef<Set<string> | null>(null)
+  const expectedSwaraRef      = useRef<string | null>(expectedSwara ?? null)
+  const showHoldAnnotationsRef = useRef(showHoldAnnotations)
   useEffect(() => {
     allowedSetRef.current = allowedSwaras ? new Set(allowedSwaras) : null
   }, [allowedSwaras])
   useEffect(() => {
     expectedSwaraRef.current = expectedSwara ?? null
   }, [expectedSwara])
+  useEffect(() => {
+    showHoldAnnotationsRef.current = showHoldAnnotations
+  }, [showHoldAnnotations])
 
   // drag-to-scroll state
   const isDraggingRef       = useRef(false)
@@ -367,6 +374,111 @@ export default function PitchGraph({
         }
       }
       if (inSeg) ctx.stroke()
+
+      // ── 8. Hold duration annotations ─────────────────────────────────────
+      if (showHoldAnnotationsRef.current && pts.length > 1) {
+        const MIN_HOLD_MS  = 800
+        // A hold ends only after this much continuous silence (no voiced frames)
+        const PAUSE_END_MS = 1000
+
+        type HoldRun = {
+          startT: number; endT: number
+          bandFreq: number; color: string; swara: string
+        }
+        const runs: HoldRun[] = []
+        let runStart:    number | null = null
+        let lastVoicedT: number | null = null
+        let runFreqs: number[] = []
+
+        const closeRun = (endT: number) => {
+          if (runStart === null || runFreqs.length === 0) return
+          if (endT - runStart >= MIN_HOLD_MS) {
+            const sorted = [...runFreqs].sort((a, b) => a - b)
+            const mf = sorted[Math.floor(sorted.length / 2)]
+            const nb = swaraBandsRef.current.reduce((best, b) =>
+              Math.abs(b.freq - mf) < Math.abs(best.freq - mf) ? b : best
+            )
+            runs.push({ startT: runStart, endT, bandFreq: nb.freq, color: nb.color, swara: nb.swara })
+          }
+          runStart    = null
+          lastVoicedT = null
+          runFreqs    = []
+        }
+
+        for (const p of pts) {
+          if (p.freq !== null) {
+            // Voiced frame — any pitched audio, regardless of cent accuracy
+            if (runStart === null) runStart = p.t
+            lastVoicedT = p.t
+            runFreqs.push(p.freq)
+          } else {
+            // Silence frame — only break the hold after > 1 s of no audio
+            if (runStart !== null && lastVoicedT !== null && p.t - lastVoicedT > PAUSE_END_MS) {
+              closeRun(lastVoicedT)
+            }
+          }
+        }
+        // Close any still-open run at the end of the point array
+        if (runStart !== null && lastVoicedT !== null) {
+          if (now - lastVoicedT > PAUSE_END_MS) {
+            closeRun(lastVoicedT)   // user has stopped; hold ended at last voiced frame
+          } else {
+            closeRun(now)           // hold is still live / just finished
+          }
+        }
+
+        // Identify the longest run for gold highlight
+        let longestMs = 0
+        for (const r of runs) longestMs = Math.max(longestMs, r.endT - r.startT)
+
+        ctx.save()
+        for (const run of runs) {
+          const isLongest = (run.endT - run.startT) === longestMs && longestMs >= MIN_HOLD_MS
+          const x1 = LABEL_W + plotW * (1 - (now - run.startT) / WINDOW_MS)
+          const x2 = LABEL_W + plotW * (1 - (now - run.endT)   / WINDOW_MS)
+          const cx1 = Math.max(LABEL_W, x1)
+          const cx2 = Math.min(LABEL_W + plotW, x2)
+          if (cx2 <= cx1 + 1) continue
+
+          const durSec = (run.endT - run.startT) / 1000
+          const yHi = fToY(freqAtCents(run.bandFreq, +25))
+          const yLo = fToY(freqAtCents(run.bandFreq, -25))
+
+          // Filled band
+          const fillColor = isLongest ? '#f59e0b' : run.color
+          ctx.fillStyle   = fillColor + (isLongest ? '28' : '18')
+          ctx.fillRect(cx1, yHi, cx2 - cx1, yLo - yHi)
+
+          // Top + bottom bracket lines
+          ctx.strokeStyle = fillColor + (isLongest ? 'aa' : '55')
+          ctx.lineWidth   = 1
+          ctx.beginPath()
+          ctx.moveTo(cx1, yHi); ctx.lineTo(cx2, yHi)
+          ctx.moveTo(cx1, yLo); ctx.lineTo(cx2, yLo)
+          ctx.stroke()
+
+          // Vertical end-caps
+          ctx.strokeStyle = fillColor + (isLongest ? '88' : '44')
+          ctx.lineWidth   = 1
+          ctx.beginPath()
+          ctx.moveTo(cx1, yHi); ctx.lineTo(cx1, yLo)
+          ctx.moveTo(cx2, yHi); ctx.lineTo(cx2, yLo)
+          ctx.stroke()
+
+          // Duration + swara label
+          if (cx2 - cx1 >= 16) {
+            ctx.font         = `${isLongest ? '700' : '600'} 9px system-ui,sans-serif`
+            ctx.fillStyle    = fillColor + (isLongest ? 'ff' : 'cc')
+            ctx.textAlign    = 'right'
+            ctx.textBaseline = 'bottom'
+            const label = isLongest
+              ? `★ ${durSec.toFixed(1)}s`
+              : `${durSec.toFixed(1)}s`
+            ctx.fillText(label, Math.min(cx2, LABEL_W + plotW) - 2, yHi - 2)
+          }
+        }
+        ctx.restore()
+      }
 
       rafRef.current = requestAnimationFrame(draw)
     }

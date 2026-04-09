@@ -98,6 +98,18 @@
   stroke-dasharray: 2 3;
 }
 
+/* Bars (DailyCountChart) */
+.prog-bar {
+  rx: 3px;
+  transition: opacity 0.1s ease;
+}
+.prog-bar-good {
+  fill: #4ecb90;
+}
+.prog-bar-low {
+  fill: #63b0ff;
+}
+
 /* Empty state */
 .prog-empty {
   font-size: 12px;

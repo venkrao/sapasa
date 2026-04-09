@@ -1032,6 +1032,154 @@
   padding: 8px 0;
 }
 
+/* ── Exercise completion count badge (sidebar) ──────────────────────── */
+.ex-count-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #7788cc;
+  background: #14142a;
+  border: 1px solid #252545;
+  border-radius: 99px;
+  padding: 1px 7px;
+  margin-left: 4px;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+/* ── Timed exercise inline guide (generic: belly-breathing, ha-pulses, etc.) */
+.timed-ex-guide {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 24px;
+  height: 100%;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.timed-ex-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.timed-ex-emoji {
+  font-size: 2.4rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.timed-ex-timer-block {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.timed-ex-timer {
+  font-size: 2rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #e8e8ff;
+  letter-spacing: 0.02em;
+}
+.timed-ex-rep-count {
+  font-size: 0.75rem;
+  color: #4ecb90;
+  font-weight: 600;
+}
+
+.timed-ex-steps {
+  margin: 0;
+  padding: 0 0 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.timed-ex-step {
+  font-size: 0.88rem;
+  color: #c8c8e8;
+  line-height: 1.5;
+}
+
+.timed-ex-cue-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.timed-ex-cue {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #14142a;
+  border: 1px solid #252545;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.82rem;
+  color: #b0b0d0;
+}
+.timed-ex-cue-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.timed-ex-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 4px;
+}
+.timed-ex-done-btn {
+  padding: 9px 22px;
+  border-radius: 8px;
+  border: none;
+  background: #2a5c3a;
+  color: #4ecb90;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.timed-ex-done-btn:hover {
+  background: #336847;
+  color: #7eedb5;
+}
+.timed-ex-exit-btn {
+  padding: 8px 16px;
+  border-radius: 7px;
+  border: 1px solid #333355;
+  background: transparent;
+  color: #8888aa;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.timed-ex-exit-btn:hover {
+  background: #1e1e3a;
+  color: #ccccee;
+}
+
+/* ── Tracker: total count row ────────────────────────────────────────── */
+.organ-tracker-total-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0 0;
+  border-top: 1px solid #1e1e30;
+  margin-top: 4px;
+}
+.organ-tracker-total-value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #63b0ff;
+  line-height: 1;
+}
+.organ-tracker-total-unit {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: #8888aa;
+}
+
 /* ── Staccato "Ha" Pulses inline guide ──────────────────────────────── */
 .ha-pulses-guide {
   display: flex;
