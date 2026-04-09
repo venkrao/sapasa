@@ -41,7 +41,7 @@ export type ExercisePanelProps = {
 }
 
 /** Playback length passed to the synth — keep in sync with `playExpectedNote`. */
-const REFERENCE_NOTE_DURATION_SEC = 1.0
+const REFERENCE_NOTE_DURATION_SEC = 2.5
 
 const SWARA_TO_NOTATION: Record<string, string> = {
   Sa: 'S',
