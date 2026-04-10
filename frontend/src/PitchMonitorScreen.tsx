@@ -466,97 +466,145 @@ export default function PitchMonitorScreen({ onHome }: Props) {
         {note
           ? <span className="header-western" style={{ color: centsColor(note.cents) }}>{note.note}</span>
           : <span className="header-western header-western-idle" />}
-        <div className="header-controls">
-          <button className="listen-button home-nav-button" onClick={onHome} type="button" title="Back to home">
+        <div className="header-controls header-controls-home-only">
+          <button
+            className="listen-button home-nav-button"
+            onClick={onHome}
+            type="button"
+            title="Leave the pitch monitor and return to the app home screen."
+          >
             Home
           </button>
-          <button
-            className={'listen-button ' + (listening ? 'on' : 'off')}
-            onClick={toggleListening}
-            type="button"
-            title={listening ? 'Stop listening' : 'Start listening'}
-          >
-            {listening ? 'Pause' : 'Listen'}
-          </button>
-          <button
-            className={'listen-button ' + (showHoldAnnotations ? 'on' : 'off')}
-            onClick={() => setShowHoldAnnotations(v => !v)}
-            type="button"
-            title={showHoldAnnotations ? 'Hide hold duration annotations' : 'Show how long each in-tune note was held'}
-          >
-            {showHoldAnnotations ? '⏱ Holds on' : '⏱ Holds'}
-          </button>
-          <button
-            className={'listen-button ' + (showCamera ? 'on' : 'off')}
-            onClick={() => setShowCamera(v => !v)}
-            type="button"
-            title={showCamera ? 'Hide camera' : 'Show camera (watch posture & shoulders)'}
-          >
-            📷 Cam
-          </button>
-
-          {/* Session timer */}
-          <div className="session-timer-group">
-            {showTimer && (
-              <>
-                <span
-                  className={`session-timer-value${timerPaused ? ' paused' : ''}`}
-                  title="Time spent in this session"
-                >
-                  {fmtTimer(sessionElapsed)}
-                </span>
-                <button
-                  className="session-timer-toggle"
-                  type="button"
-                  onClick={() => setTimerPaused(v => !v)}
-                  title={timerPaused ? 'Resume timer' : 'Pause timer'}
-                  aria-label={timerPaused ? 'Resume timer' : 'Pause timer'}
-                >
-                  {timerPaused ? '▶' : '⏸'}
-                </button>
-              </>
-            )}
-            <button
-              className="session-timer-toggle"
-              type="button"
-              onClick={() => setShowTimer(v => !v)}
-              title={showTimer ? 'Hide session timer' : 'Show session timer'}
-            >
-              ⏱
-            </button>
-          </div>
-
-          <select className="shruti-select" value={saHz} onChange={e => onShrutiChange(Number(e.target.value))}>
-            {SHRUTI_LIST.map(s => (
-              <option key={s.hz} value={s.hz}>
-                {s.kattai} ({s.western}) — {s.typicalUser}
-              </option>
-            ))}
-          </select>
-
-          <div className="octave-stepper" title="Shift Sa up or down by one octave">
-            <button
-              className="octave-step-btn"
-              type="button"
-              onClick={() => onOctaveShiftChange(octaveShift - 1)}
-              disabled={octaveShift <= -2}
-              aria-label="Shift octave down"
-            >−8va</button>
-            <span className="octave-value">
-              {octaveShift === 0 ? 'Oct' : octaveShift > 0 ? `+${octaveShift} oct` : `${octaveShift} oct`}
-            </span>
-            <button
-              className="octave-step-btn"
-              type="button"
-              onClick={() => onOctaveShiftChange(octaveShift + 1)}
-              disabled={octaveShift >= 2}
-              aria-label="Shift octave up"
-            >+8va</button>
-          </div>
         </div>
       </header>
 
-      <TanpuraStrip saHz={effectiveSaHz} shrutiSummary={shrutiSummary} />
+      <TanpuraStrip
+        saHz={effectiveSaHz}
+        shrutiSummary={shrutiSummary}
+        sessionToolbar={
+          <>
+            <button
+              className={'listen-button ' + (listening ? 'on' : 'off')}
+              onClick={toggleListening}
+              type="button"
+              title={
+                listening
+                  ? 'Pause listening — pitch detection stops, the graph and detected note freeze; click again to resume.'
+                  : 'Listen — start pitch detection; analyze the microphone and show your Carnatic swara, cents, and trace on the graph in real time.'
+              }
+            >
+              {listening ? 'Pause listening' : 'Listen'}
+            </button>
+            <button
+              className={'listen-button ' + (showHoldAnnotations ? 'on' : 'off')}
+              onClick={() => setShowHoldAnnotations(v => !v)}
+              type="button"
+              title={
+                showHoldAnnotations
+                  ? 'Turn off hold annotations — remove labels that show how long each stable, in-tune segment lasted.'
+                  : 'Show hold durations — when on, the graph annotates how long you sustain each in-tune note (useful for steady singing practice).'
+              }
+            >
+              {showHoldAnnotations ? '⏱ Holds on' : '⏱ Holds'}
+            </button>
+            <button
+              className={'listen-button ' + (showCamera ? 'on' : 'off')}
+              onClick={() => setShowCamera(v => !v)}
+              type="button"
+              title={
+                showCamera
+                  ? 'Hide the posture camera — closes the picture-in-picture overlay (you can reopen it anytime).'
+                  : 'Show posture camera — opens a small video overlay on the graph with physical feedback (e.g. shoulders, jaw). Drag the header to move; drag the corner grip to resize.'
+              }
+            >
+              📷 Cam
+            </button>
+
+            <div
+              className="session-timer-group"
+              title="Session clock — tracks how long this practice has been open. Use ⏱ to show or hide the display; use ▶/⏸ to pause or resume counting."
+            >
+              {showTimer && (
+                <>
+                  <span
+                    className={`session-timer-value${timerPaused ? ' paused' : ''}`}
+                    title="Elapsed time for this session since you opened the pitch monitor. Pauses when you click ⏸ on the timer."
+                  >
+                    {fmtTimer(sessionElapsed)}
+                  </span>
+                  <button
+                    className="session-timer-toggle"
+                    type="button"
+                    onClick={() => setTimerPaused(v => !v)}
+                    title={
+                      timerPaused
+                        ? 'Resume the session timer — seconds start counting again from where you left off.'
+                        : 'Pause the session timer — freezes the clock (useful if you step away without closing the app).'
+                    }
+                    aria-label={timerPaused ? 'Resume timer' : 'Pause timer'}
+                  >
+                    {timerPaused ? '▶' : '⏸'}
+                  </button>
+                </>
+              )}
+              <button
+                className="session-timer-toggle"
+                type="button"
+                onClick={() => setShowTimer(v => !v)}
+                title={
+                  showTimer
+                    ? 'Hide the session timer — removes the clock from the bar (elapsed time is kept; show again to resume display).'
+                    : 'Show the session timer — displays elapsed practice time and pause controls next to this icon.'
+                }
+                aria-label={showTimer ? 'Hide session timer' : 'Show session timer'}
+              >
+                ⏱
+              </button>
+            </div>
+
+            <select
+              className="shruti-select"
+              value={saHz}
+              onChange={e => onShrutiChange(Number(e.target.value))}
+              title="Reference Sa (shruti / kattai). Sets the fundamental pitch for the graph, tanpura drone, and exercises — match your physical tambura or instrument tuning."
+            >
+              {SHRUTI_LIST.map(s => (
+                <option key={s.hz} value={s.hz}>
+                  {s.kattai} ({s.western}) — {s.typicalUser}
+                </option>
+              ))}
+            </select>
+
+            <div
+              className="octave-stepper"
+              title="Transpose the app’s reference Sa by whole octaves (graph, drone, exercises). Use when your voice or instrument sits above or below the default range."
+            >
+              <button
+                className="octave-step-btn"
+                type="button"
+                onClick={() => onOctaveShiftChange(octaveShift - 1)}
+                disabled={octaveShift <= -2}
+                aria-label="Shift octave down"
+                title="Shift reference down one octave (lower all pitches by 8va). Disabled at the lowest allowed shift."
+              >−8va</button>
+              <span
+                className="octave-value"
+                title="Current octave shift relative to the chosen shruti. 0 means no shift; ±1 is one octave up or down."
+              >
+                {octaveShift === 0 ? 'Oct' : octaveShift > 0 ? `+${octaveShift} oct` : `${octaveShift} oct`}
+              </span>
+              <button
+                className="octave-step-btn"
+                type="button"
+                onClick={() => onOctaveShiftChange(octaveShift + 1)}
+                disabled={octaveShift >= 2}
+                aria-label="Shift octave up"
+                title="Shift reference up one octave (raise all pitches by 8va). Disabled at the highest allowed shift."
+              >+8va</button>
+            </div>
+          </>
+        }
+      />
 
       <div className="graph-container">
         <div className="graph-left" ref={graphLeftRef}>
@@ -572,6 +620,7 @@ export default function PitchMonitorScreen({ onHome }: Props) {
 
         <div
           className={'sidebar-divider ' + (sidebarDragging ? 'dragging' : '')}
+          title="Drag horizontally to resize the exercise panel — wider gives more notation space; narrower gives more room to the pitch graph."
           onPointerDown={e => {
             resizingRef.current = true
             setSidebarDragging(true)
@@ -666,13 +715,17 @@ export default function PitchMonitorScreen({ onHome }: Props) {
     {showCamera &&
       createPortal(
         <div className="camera-pip camera-pip-portal" style={pipPortalStyle}>
-          <div className="camera-pip-handle" onPointerDown={startPipDrag}>
+          <div
+            className="camera-pip-handle"
+            onPointerDown={startPipDrag}
+            title="Drag to move the camera window — position it so it does not cover the pitch trace you care about."
+          >
             <span>📷 Camera</span>
             <button
               type="button"
               className="camera-pip-close"
               onClick={() => setShowCamera(false)}
-              title="Close camera"
+              title="Close the posture camera — same as turning off 📷 Cam in the toolbar; you can reopen from there."
             >
               ✕
             </button>
@@ -683,7 +736,11 @@ export default function PitchMonitorScreen({ onHome }: Props) {
             onHome={() => setShowCamera(false)}
             onClose={() => setShowCamera(false)}
           />
-          <div className="camera-pip-resize" onPointerDown={startPipResize} title="Drag to resize" />
+          <div
+            className="camera-pip-resize"
+            onPointerDown={startPipResize}
+            title="Drag to resize the camera panel — pull diagonally to change width and height."
+          />
         </div>,
         document.body,
       )}

@@ -248,6 +248,7 @@ export default function ExercisePanel({
                 className="exercise-select"
                 value={selectedRagaId}
                 onChange={e => onRagaChange(e.target.value)}
+                title="Choose a raga — loads its scale and the list of exercises available for practice."
               >
                 {ragaOptions.map(o => (
                   <option key={o.id} value={o.id}>
@@ -263,6 +264,7 @@ export default function ExercisePanel({
                 className="exercise-select"
                 value={selectedExerciseId}
                 onChange={e => onExerciseChange(e.target.value)}
+                title="Choose an exercise — defines the sequence of swaras you will sing or hear in Sing & Test / auto-play."
               >
                 {exerciseOptions.map(o => (
                   <option key={o.id} value={o.id}>
@@ -284,8 +286,12 @@ export default function ExercisePanel({
                     type="button"
                     onClick={() => setTempo(t => Math.max(20, t - 4))}
                     aria-label="Decrease tempo"
+                    title="Slow down auto-play — reduces BPM in steps (minimum 20 BPM)."
                   >−</button>
-                  <span className="exercise-tempo-value">
+                  <span
+                    className="exercise-tempo-value"
+                    title="Tempo for auto-play only — beats per minute between successive notes in the exercise sequence."
+                  >
                     {tempo} <span className="exercise-tempo-unit">BPM</span>
                   </span>
                   <button
@@ -293,6 +299,7 @@ export default function ExercisePanel({
                     type="button"
                     onClick={() => setTempo(t => Math.min(360, t + 4))}
                     aria-label="Increase tempo"
+                    title="Speed up auto-play — increases BPM in steps (maximum 360 BPM)."
                   >+</button>
                 </div>
               </div>
@@ -301,7 +308,11 @@ export default function ExercisePanel({
                 type="button"
                 onClick={() => void startAutoPlay()}
                 disabled={!canStart}
-                title={!canStart ? 'Select a raga and exercise first' : 'Play each note automatically'}
+                title={
+                  !canStart
+                    ? 'Pick a raga and an exercise from the menus above before starting auto-play.'
+                    : 'Auto-play — the app advances through each note in the exercise at the chosen tempo (listen-only run-through).'
+                }
               >
                 Start
               </button>
@@ -315,7 +326,11 @@ export default function ExercisePanel({
                 type="button"
                 className={`exercise-loop-btn${loopExercise ? ' active' : ''}`}
                 onClick={onToggleLoop}
-                title={loopExercise ? 'Loop on — exercise restarts automatically' : 'Loop off — exercise stops after one pass'}
+                title={
+                  loopExercise
+                    ? 'Loop is on — after the last swara, the exercise starts again from the beginning. Click to turn off.'
+                    : 'Loop is off — the exercise ends after one full pass. Click to repeat the sequence automatically.'
+                }
                 aria-pressed={loopExercise}
               >
                 ↺ {loopExercise ? 'Loop on' : 'Loop'}
@@ -325,7 +340,11 @@ export default function ExercisePanel({
                 type="button"
                 onClick={onStart}
                 disabled={!canStart}
-                title={!canStart ? 'Select a raga and exercise first' : 'Sing along and test your ear'}
+                title={
+                  !canStart
+                    ? 'Pick a raga and an exercise from the menus above before starting.'
+                    : 'Sing & Test — you sing each expected swara; the app listens and advances when your pitch matches (with optional loop).'
+                }
               >
                 Sing &amp; Test
               </button>
@@ -336,17 +355,31 @@ export default function ExercisePanel({
                 type="button"
                 className={`exercise-loop-btn${loopExercise ? ' active' : ''}`}
                 onClick={onToggleLoop}
-                title={loopExercise ? 'Loop on — click to turn off' : 'Loop off — click to turn on'}
+                title={
+                  loopExercise
+                    ? 'Loop is on — after the last note the exercise restarts. Click to stop after one pass next time.'
+                    : 'Loop is off — exercise stops at the end. Click to repeat the sequence when you finish.'
+                }
                 aria-pressed={loopExercise}
               >
                 ↺ {loopExercise ? 'Loop on' : 'Loop'}
               </button>
-              <button className="exercise-btn exercise-btn-stop" type="button" onClick={onStop}>
+              <button
+                className="exercise-btn exercise-btn-stop"
+                type="button"
+                onClick={onStop}
+                title="Stop Sing & Test — ends the exercise, clears the expected-note state, and returns to ready."
+              >
                 Stop
               </button>
             </div>
           ) : autoPlayActive ? (
-            <button className="exercise-btn exercise-btn-stop" type="button" onClick={stopAutoPlay}>
+            <button
+              className="exercise-btn exercise-btn-stop"
+              type="button"
+              onClick={stopAutoPlay}
+              title="Stop auto-play — halts the automatic note sequence and returns to ready."
+            >
               Stop
             </button>
           ) : null}
@@ -376,7 +409,7 @@ export default function ExercisePanel({
                 className="exercise-btn exercise-btn-reference"
                 type="button"
                 onClick={() => void playExpectedNote()}
-                title="Plays the expected swara at your selected shruti (optional aid — don’t lean on it for every note)."
+                title="Hear the expected swara — plays a short reference tone at your current shruti. Use sparingly so you still train your internal pitch."
               >
                 Play note
               </button>
@@ -384,7 +417,7 @@ export default function ExercisePanel({
                 className="exercise-tone-select"
                 value={tonePreset}
                 onChange={e => setTonePreset(e.target.value as TonePreset)}
-                title="Sound for the reference note"
+                title="Timbre for the reference tone — piano vs sine changes how the target pitch sounds when you preview it."
               >
                 <option value="piano">Piano</option>
                 <option value="sine">Sine</option>

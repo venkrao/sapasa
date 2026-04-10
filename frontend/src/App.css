@@ -53,6 +53,10 @@
   gap: 10px;
 }
 
+.header-controls-home-only {
+  flex-shrink: 0;
+}
+
 .listen-button {
   font-size: 0.8rem;
   font-weight: 600;
@@ -181,12 +185,21 @@
 .tanpura-bar {
   flex-shrink: 0;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 16px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
   padding: 8px 24px 10px;
   border-bottom: 1px solid #141414;
   background: linear-gradient(180deg, rgba(212, 175, 55, 0.04), transparent);
+}
+
+.tanpura-bar-main-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  min-width: 0;
 }
 
 .tanpura-bar-inner {
@@ -194,6 +207,38 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 12px 18px;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.pitch-session-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+/* Single hint that native tooltips exist on hover (see control `title`s). */
+.toolbar-help-mark {
+  align-self: center;
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #6b6b6b;
+  cursor: help;
+  user-select: none;
+  line-height: 1;
+  padding: 3px 7px;
+  border-radius: 999px;
+  border: 1px solid #333;
+  background: #141414;
+}
+.toolbar-help-mark:hover {
+  color: #9ca3af;
+  border-color: #4b5563;
 }
 
 .tanpura-toggle {
