@@ -15,6 +15,12 @@ type NoteEvent = { status: 'note'; note: string; swara: string; cents: number; f
 type IdleEvent = { status: 'idle' }
 type PitchEvent = NoteEvent | IdleEvent
 
+function fmtTimer(seconds: number): string {
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return m > 0 ? `${m}:${s.toString().padStart(2, '0')}` : `${s}s`
+}
+
 function centsColor(cents: number): string {
   const abs = Math.abs(cents)
   if (abs <= 10) return '#4ade80'
@@ -46,6 +52,19 @@ export default function PitchMonitorScreen({ onHome }: Props) {
   const [showHoldAnnotations, setShowHoldAnnotations] = useState(false)
   const [loopExercise, setLoopExercise] = useState(false)
   const loopExerciseRef = useRef(false)
+
+  // Session timer
+  const [sessionElapsed, setSessionElapsed] = useState(0)
+  const [showTimer, setShowTimer] = useState(true)
+  const [timerPaused, setTimerPaused] = useState(false)
+  const timerPausedRef = useRef(false)
+  useEffect(() => { timerPausedRef.current = timerPaused }, [timerPaused])
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (!timerPausedRef.current) setSessionElapsed(s => s + 1)
+    }, 1000)
+    return () => clearInterval(id)
+  }, [])
 
   // effectiveSaHz is what everything uses — shruti × octave multiplier.
   const effectiveSaHz = saHz * Math.pow(2, octaveShift)
@@ -360,6 +379,38 @@ export default function PitchMonitorScreen({ onHome }: Props) {
           >
             {showHoldAnnotations ? '⏱ Holds on' : '⏱ Holds'}
           </button>
+
+          {/* Session timer */}
+          <div className="session-timer-group">
+            {showTimer && (
+              <>
+                <span
+                  className={`session-timer-value${timerPaused ? ' paused' : ''}`}
+                  title="Time spent in this session"
+                >
+                  {fmtTimer(sessionElapsed)}
+                </span>
+                <button
+                  className="session-timer-toggle"
+                  type="button"
+                  onClick={() => setTimerPaused(v => !v)}
+                  title={timerPaused ? 'Resume timer' : 'Pause timer'}
+                  aria-label={timerPaused ? 'Resume timer' : 'Pause timer'}
+                >
+                  {timerPaused ? '▶' : '⏸'}
+                </button>
+              </>
+            )}
+            <button
+              className="session-timer-toggle"
+              type="button"
+              onClick={() => setShowTimer(v => !v)}
+              title={showTimer ? 'Hide session timer' : 'Show session timer'}
+            >
+              ⏱
+            </button>
+          </div>
+
           <select className="shruti-select" value={saHz} onChange={e => onShrutiChange(Number(e.target.value))}>
             {SHRUTI_LIST.map(s => (
               <option key={s.hz} value={s.hz}>

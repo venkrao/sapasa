@@ -1,4 +1,5 @@
 import type { RagaDefinition, SequenceStep } from '../exerciseModel'
+import { SARALI_VARISAI_1_MADHYAMAVATHI } from '../exercises/saraliVarisai1Madhyamavathi'
 
 /**
  * Madhyamavathi — 28th janya of Kharaharapriya (22nd melakarta).
@@ -19,7 +20,7 @@ export const MADHYAMAVATHI: RagaDefinition = {
   id: 'madhyamavathi',
   label: 'Madhyamavathi',
   talaLabel: 'Adi-tala',
-  exercises: [],   // only Arohanam & Avarohanam for now
+  exercises: [SARALI_VARISAI_1_MADHYAMAVATHI],
 
   arohanam: [
     { swara: 'Sa', octave:  0 },

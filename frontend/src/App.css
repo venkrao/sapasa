@@ -69,6 +69,44 @@
 .listen-button.on    { color: #d4d4d4; }
 .listen-button.off   { color: #6b7280; }
 
+/* ── Session timer (header) ─────────────────────────────────────────── */
+.session-timer-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #111;
+  border: 1px solid #222;
+  border-radius: 6px;
+  padding: 2px 4px 2px 8px;
+}
+.session-timer-value {
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #6677bb;
+  letter-spacing: 0.04em;
+  min-width: 3ch;
+  text-align: right;
+  transition: color 0.2s;
+}
+.session-timer-value.paused {
+  color: #444466;
+}
+.session-timer-toggle {
+  background: transparent;
+  border: none;
+  padding: 2px 5px;
+  font-size: 0.75rem;
+  color: #555577;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.session-timer-toggle:hover {
+  color: #8888aa;
+  background: #1a1a2a;
+  border-color: transparent;
+}
+
 .shruti-select {
   font-size: 0.8rem;
   font-weight: 500;

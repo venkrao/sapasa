@@ -43,24 +43,44 @@ function TimedExerciseInline({
   onDone: (durationSec: number) => void
   onExit: () => void
 }) {
-  const [elapsed, setElapsed]   = useState(0)
-  const [repCount, setRepCount] = useState(0)
-  const startRef = useRef(Date.now())
+  const [elapsed, setElapsed]           = useState(0)
+  const [stopwatchPaused, setStopwatchPaused] = useState(false)
+  const stopwatchPausedRef = useRef(false)
+  const startRef           = useRef(Date.now())
+  // Accumulated ms before the last pause (so pause/resume doesn't lose time)
+  const accumulatedRef     = useRef(0)
+
+  useEffect(() => { stopwatchPausedRef.current = stopwatchPaused }, [stopwatchPaused])
 
   useEffect(() => {
     const id = setInterval(() => {
-      setElapsed(Math.floor((Date.now() - startRef.current) / 1000))
+      if (!stopwatchPausedRef.current) {
+        setElapsed(Math.floor((accumulatedRef.current + Date.now() - startRef.current) / 1000))
+      }
     }, 1000)
     return () => clearInterval(id)
   }, [])
 
+  function toggleStopwatch() {
+    if (stopwatchPausedRef.current) {
+      // Resuming: reset startRef so elapsed accumulates correctly
+      startRef.current = Date.now()
+      setStopwatchPaused(false)
+    } else {
+      // Pausing: bank elapsed ms so far
+      accumulatedRef.current += Date.now() - startRef.current
+      setStopwatchPaused(true)
+    }
+  }
+
   function handleDone() {
-    const dur = (Date.now() - startRef.current) / 1000
+    const dur = (accumulatedRef.current + (stopwatchPausedRef.current ? 0 : Date.now() - startRef.current)) / 1000
     onDone(dur)
-    // Reset timer for next rep
+    // Reset for next rep
+    accumulatedRef.current = 0
     startRef.current = Date.now()
+    setStopwatchPaused(false)
     setElapsed(0)
-    setRepCount(c => c + 1)
   }
 
   const emoji = EXERCISE_EMOJIS[exerciseId] ?? '🎵'
@@ -70,11 +90,19 @@ function TimedExerciseInline({
       <div className="timed-ex-header">
         <span className="timed-ex-emoji">{emoji}</span>
         <div className="timed-ex-timer-block">
-          <div className="timed-ex-timer">{fmtTimer(elapsed)}</div>
-          {repCount > 0 && (
-            <div className="timed-ex-rep-count">{repCount} done this session</div>
-          )}
+          <div className={`timed-ex-timer${stopwatchPaused ? ' paused' : ''}`}>
+            {fmtTimer(elapsed)}
+          </div>
         </div>
+        <button
+          type="button"
+          className="timed-ex-pause-btn"
+          onClick={toggleStopwatch}
+          title={stopwatchPaused ? 'Resume stopwatch' : 'Pause stopwatch'}
+          aria-label={stopwatchPaused ? 'Resume stopwatch' : 'Pause stopwatch'}
+        >
+          {stopwatchPaused ? '▶' : '⏸'}
+        </button>
       </div>
 
       <ol className="timed-ex-steps">
@@ -134,6 +162,19 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
 
   // Sidebar completion-count badges (total sessions per exercise)
   const [completionCounts, setCompletionCounts] = useState<Record<string, number>>({})
+  // Count of "Mark Done" / sessions saved in the current open-exercise session
+  const [sessionRepCount, setSessionRepCount] = useState(0)
+  // Overall time spent on this OrganTraining page (starts on mount)
+  const [sessionElapsed, setSessionElapsed] = useState(0)
+  const [sessionTimerPaused, setSessionTimerPaused] = useState(false)
+  const sessionTimerPausedRef = useRef(false)
+  useEffect(() => { sessionTimerPausedRef.current = sessionTimerPaused }, [sessionTimerPaused])
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (!sessionTimerPausedRef.current) setSessionElapsed(s => s + 1)
+    }, 1000)
+    return () => clearInterval(id)
+  }, [])
 
   // Progress drawer content
   const [drawerData, setDrawerData]     = useState<DrawerData>({ daily: [], raw: [] })
@@ -205,6 +246,7 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
     })
       .then(() => {
         fetchAllCounts()
+        setSessionRepCount(c => c + 1)
         if (showTracker) fetchDrawerData(exerciseId)
       })
       .catch(() => {})
@@ -222,6 +264,7 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
     setActiveExercise(guideId)
     setShowCamera(false)
     setShowTracker(false)
+    setSessionRepCount(0)
   }
 
   function exitExercise() {
@@ -253,6 +296,24 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
         </button>
 
         <div className="organ-col-inner sidebar-content">
+          <div className="organ-session-timer">
+            <span className="organ-session-timer-label">Session</span>
+            <div className="organ-session-timer-right">
+              <span className={`organ-session-timer-value${sessionTimerPaused ? ' paused' : ''}`}>
+                {fmtTimer(sessionElapsed)}
+              </span>
+              <button
+                type="button"
+                className="organ-session-timer-btn"
+                onClick={() => setSessionTimerPaused(v => !v)}
+                title={sessionTimerPaused ? 'Resume timer' : 'Pause timer'}
+                aria-label={sessionTimerPaused ? 'Resume timer' : 'Pause timer'}
+              >
+                {sessionTimerPaused ? '▶' : '⏸'}
+              </button>
+            </div>
+          </div>
+
           <div className="organ-essentials-header">
             <div className="organ-essentials-title">Breathing Exercises</div>
             <p className="organ-essentials-lede">{BREATH_CONTROL_ESSENTIAL_SUMMARY}</p>
@@ -338,6 +399,11 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
               {/* Header bar */}
               <div className="organ-active-header">
                 <span className="organ-active-title">{activeEx?.title}</span>
+                {sessionRepCount > 0 && (
+                  <span className="organ-active-count" title="Times completed this session">
+                    {sessionRepCount}× this session
+                  </span>
+                )}
                 <button
                   type="button"
                   className={`organ-camera-toggle ${showCamera ? 'active' : ''}`}
@@ -357,6 +423,7 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
                       onClose={exitExercise}
                       onSessionSaved={() => {
                         fetchAllCounts()
+                        setSessionRepCount(c => c + 1)
                         if (showTracker) fetchDrawerData('sss-hiss')
                       }}
                     />

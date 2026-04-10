@@ -282,7 +282,7 @@ export default function ExercisePanel({
                   <button
                     className="exercise-tempo-step-btn"
                     type="button"
-                    onClick={() => setTempo(t => Math.max(30, t - 4))}
+                    onClick={() => setTempo(t => Math.max(20, t - 4))}
                     aria-label="Decrease tempo"
                   >−</button>
                   <span className="exercise-tempo-value">
@@ -291,7 +291,7 @@ export default function ExercisePanel({
                   <button
                     className="exercise-tempo-step-btn"
                     type="button"
-                    onClick={() => setTempo(t => Math.min(240, t + 4))}
+                    onClick={() => setTempo(t => Math.min(360, t + 4))}
                     aria-label="Increase tempo"
                   >+</button>
                 </div>
