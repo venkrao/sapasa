@@ -502,14 +502,59 @@
 
 /* Active state */
 .camera-embedded-active {
-  /* Must be a flex column so the feed stretches and metrics pin to the bottom */
+  /* Flex column; do not set height:100% here — it resolves against distant ancestors in some
+     layouts (e.g. PiP) and overflows the visible area, clipping the metrics panel. */
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: hidden;
 }
 
+/*
+ * Carnatic training PiP: nested flex + % heights on indefinite parents can collapse the
+ * metrics row to 0 after paint. Use only `fr` rows (no %) so both bands get a definite share
+ * of the grid container’s height.
+ */
+.camera-embedded--pip {
+  display: grid !important;
+  grid-template-columns: 1fr;
+  grid-template-rows: minmax(0, 3fr) minmax(0, 2fr);
+  flex-direction: unset !important;
+  min-height: 0;
+}
+
+.camera-embedded--pip .camera-embedded-feed {
+  flex: unset !important;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.camera-embedded--pip .camera-embedded-metrics {
+  flex: unset !important;
+  position: relative;
+  z-index: 2;
+  min-height: 0;
+  max-height: none !important;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #0a0a0a;
+}
+
+.camera-embedded--pip .camera-embedded-metrics-stack {
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: none !important;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 .camera-embedded-feed {
+  position: relative;
+  z-index: 1;
   flex: 1;
   min-height: 0;
   display: flex;
@@ -517,16 +562,41 @@
   padding: 10px 10px 0;
 }
 
+/* Must establish a positioning + clipping context — otherwise .camera-video / .camera-canvas
+   (position:absolute) attach to .camera-embedded and fill the *entire* panel, painting over
+   the live-metrics row (looks like metrics “flicker then vanish”). Full lab uses the same on .camera-feed-wrap. */
 .camera-embedded-feed .camera-feed-inner {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
   flex: 1;
   min-height: 0;
   border-radius: 10px;
 }
 
 .camera-embedded-metrics {
-  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   padding: 10px 12px 14px;
   border-top: 1px solid #161616;
+  overflow: hidden;
+  background: #0a0a0a;
+}
+
+/* Scrollable stack of lab-style .panel-block sections inside embedded camera */
+.camera-embedded-metrics-stack {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
 }
 
 /* Close × button */
@@ -550,16 +620,6 @@
   transition: color 120ms;
 }
 .camera-embedded-close:hover { color: #aaa; }
-
-.emb-baseline {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.emb-baseline-label {
-  font-size: 0.78rem;
-  color: #737373;
-}
 
 /* ── Responsive ─────────────────────────────────────────────────────────────── */
 

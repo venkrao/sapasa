@@ -282,6 +282,7 @@
 .graph-left {
   flex: 1;
   min-width: 0;
+  position: relative; /* anchor for camera-pip absolute positioning */
 }
 
 .sidebar-divider {
@@ -367,5 +368,96 @@
 .home-nav-button {
   color: #e5e5e5;
   background: #0f0f0f;
+}
+
+/* ── Camera PiP overlay (Carnatic training screen) ── */
+.camera-pip {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 320px;
+  z-index: 10;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Portaled to document.body with inline position:fixed — not a child of .graph-left */
+.camera-pip-portal {
+  position: fixed;
+  pointer-events: auto;
+}
+
+/* Legacy: PiP was absolutely positioned inside the graph (organizer / older layouts) */
+.camera-pip:not(.camera-pip-portal) {
+  position: absolute;
+  z-index: 10;
+}
+
+/* Body fills the flex slot under the drag bar when PiP is nested (non-portal). */
+.camera-pip:not(.camera-pip-portal) > .camera-embedded {
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+  height: auto;
+}
+
+.camera-pip-handle {
+  height: 30px;
+  background: #1a1a2e;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  cursor: grab;
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: #a0a0b0;
+  letter-spacing: 0.04em;
+}
+
+.camera-pip-handle:active {
+  cursor: grabbing;
+}
+
+.camera-pip-close {
+  background: none;
+  border: none;
+  color: #a0a0b0;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  line-height: 1;
+  transition: color 120ms, background 120ms;
+}
+
+.camera-pip-close:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.camera-pip-resize {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 18px;
+  height: 18px;
+  cursor: nwse-resize;
+  z-index: 11;
+  /* Diagonal stripes to signal resize affordance */
+  background: linear-gradient(
+    -45deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.15) 30%,
+    rgba(255, 255, 255, 0.15) 40%,
+    transparent 40%,
+    transparent 60%,
+    rgba(255, 255, 255, 0.15) 60%,
+    rgba(255, 255, 255, 0.15) 70%,
+    transparent 70%
+  );
+  border-bottom-right-radius: 8px;
 }
 

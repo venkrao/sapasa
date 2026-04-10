@@ -1,39 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import './CameraObservationLab.css'
-
-// ── Types ──────────────────────────────────────────────────────────────────────
-
-type LiveMetrics = {
-  shoulderElevation: number | null  // positive = raised above baseline (raw, per-frame)
-  shoulderSmoothed: number | null   // rolling average over ~20 frames — what gets displayed
-  shoulderAsymmetry: number | null  // abs(L.y − R.y): one shoulder held higher than the other
-  headForward: number | null        // positive = forward of baseline
-  jawOpen: number | null            // 0–1 from face blendshapes
-  mouthRatio: number | null         // vertical/horizontal – >0.3 = tall, <0.3 = spread
-  shouldersVisible: boolean
-  faceVisible: boolean
-}
-
-// Three-level shoulder tension classification.
-// Thresholds in normalised video-height units (0–1).
-//   settled  < 0.012  (~6px in 480p)
-//   tension  0.012–0.038
-//   raised   > 0.038
-type ShoulderLevel = 'settled' | 'tension' | 'raised'
-
-function shoulderLevel(smoothed: number | null): ShoulderLevel | null {
-  if (smoothed === null) return null
-  if (smoothed < 0.012) return 'settled'
-  if (smoothed < 0.038) return 'tension'
-  return 'raised'
-}
-
-// Map elevation to a 0–100 fill percentage for the bar.
-// 0.06 is treated as the practical ceiling ("very raised").
-function elevationPct(smoothed: number | null): number {
-  if (smoothed === null) return 0
-  return Math.min(100, Math.round((Math.max(0, smoothed) / 0.06) * 100))
-}
+import type { LiveMetrics, ShoulderLevel } from './cameraMetrics'
+import { shoulderLevel, elevationPct } from './cameraMetrics'
+import CameraLiveMetricsPanel from './CameraLiveMetricsPanel'
 
 type Baseline = {
   shoulderY: number
@@ -108,11 +77,13 @@ type Props = {
   onHome: () => void
   /** Render as a compact panel inside another component (no app wrapper, no header, no phrase recording) */
   embedded?: boolean
+  /** Carnatic PiP: use grid layout so live metrics never collapse (flex + % heights can flicker away) */
+  embeddedPip?: boolean
   /** Called when the embedded panel is dismissed */
   onClose?: () => void
 }
 
-export default function CameraObservationLab({ onHome, embedded = false, onClose }: Props) {
+export default function CameraObservationLab({ onHome, embedded = false, embeddedPip = false, onClose }: Props) {
   const [phase, setPhase] = useState<Phase>('consent')
   const [recordState, setRecordState] = useState<RecordState>('baseline')
   const [metrics, setMetrics] = useState<LiveMetrics | null>(null)
@@ -521,7 +492,7 @@ export default function CameraObservationLab({ onHome, embedded = false, onClose
   const mouthShape       = metrics?.mouthRatio != null
     ? metrics.mouthRatio > 0.3 ? 'tall ✓' : 'spread'
     : null
-  const asymVisible      = metrics?.shouldersVisible && metrics.shoulderAsymmetry != null
+  const asymVisible      = Boolean(metrics?.shouldersVisible && metrics.shoulderAsymmetry != null)
   const asymNotable      = (metrics?.shoulderAsymmetry ?? 0) > 0.018
 
   // ── Embedded render ───────────────────────────────────────────────────────────
@@ -565,7 +536,11 @@ export default function CameraObservationLab({ onHome, embedded = false, onClose
 
     // Active state: camera feed + live metrics only
     return (
-      <div className="camera-embedded camera-embedded-active">
+      <div
+        className={
+          'camera-embedded camera-embedded-active' + (embeddedPip ? ' camera-embedded--pip' : '')
+        }
+      >
         <button className="camera-embedded-close" onClick={handleEmbeddedClose} aria-label="Close camera">×</button>
 
         {/* Camera feed */}
@@ -584,65 +559,21 @@ export default function CameraObservationLab({ onHome, embedded = false, onClose
           </div>
         </div>
 
-        {/* Live metrics */}
+        {/* Same Live metrics UI as Camera Lab (shared component) */}
         <div className="camera-embedded-metrics">
-          {recordState === 'baseline' && (
-            <div className="emb-baseline">
-              <div className="emb-baseline-label">Establishing baseline…</div>
-              <div className="baseline-track" style={{ marginTop: 6 }}>
-                <div className="baseline-fill" style={{ width: `${baselineProgress}%` }} />
-              </div>
-              <div className="panel-hint" style={{ marginTop: 6 }}>Stand naturally for a moment.</div>
-            </div>
-          )}
-
-          {recordState !== 'baseline' && (
-            <div className="metrics-list">
-              <div className="metrics-heading" style={{ marginBottom: 10 }}>Shoulder monitoring</div>
-
-              {/* Shoulder tension bar */}
-              <div className="metric-row metric-row-col">
-                <div className="metric-row-top">
-                  <span className="metric-label">Shoulders</span>
-                  <span className={`metric-value metric-${
-                    !metrics?.shouldersVisible ? 'off' :
-                    currentLevel === 'raised'  ? 'raised' :
-                    currentLevel === 'tension' ? 'warn' : 'ok'
-                  }`}>
-                    {!metrics?.shouldersVisible ? '—' :
-                     currentLevel === 'raised'  ? 'raised' :
-                     currentLevel === 'tension' ? 'mild tension' :
-                     currentLevel === 'settled' ? 'settled' : '—'}
-                  </span>
-                </div>
-                <div className="shoulder-bar-track">
-                  <div
-                    className={`shoulder-bar-fill shoulder-bar-${currentLevel ?? 'off'}`}
-                    style={{ width: `${currentElevPct}%` }}
-                  />
-                  <div className="shoulder-bar-tick" style={{ left: '20%' }} />
-                  <div className="shoulder-bar-tick" style={{ left: '63%' }} />
-                </div>
-              </div>
-
-              {metrics?.shouldersVisible && metrics.shoulderAsymmetry != null && (
-                <MetricRow
-                  label="Asymmetry"
-                  value={(metrics.shoulderAsymmetry ?? 0) > 0.018 ? 'one side higher' : 'even'}
-                  status={(metrics.shoulderAsymmetry ?? 0) > 0.018 ? 'warn' : 'ok'}
-                  indent
-                />
-              )}
-
-              <MetricRow
-                label="Head"
-                value={metrics?.headForward != null
-                  ? isHeadForward ? 'forward' : 'aligned'
-                  : '—'}
-                status={metrics?.shouldersVisible ? (isHeadForward ? 'warn' : 'ok') : 'off'}
-              />
-            </div>
-          )}
+          <CameraLiveMetricsPanel
+            variant="embedded"
+            recordState={recordState}
+            baselineProgress={baselineProgress}
+            metrics={metrics}
+            currentLevel={currentLevel}
+            currentElevPct={currentElevPct}
+            isHeadForward={isHeadForward}
+            jawPct={jawPct}
+            mouthShape={mouthShape}
+            asymVisible={asymVisible}
+            asymNotable={asymNotable}
+          />
         </div>
       </div>
     )
@@ -761,95 +692,19 @@ export default function CameraObservationLab({ onHome, embedded = false, onClose
           {/* ── Right: Controls & metrics ──────────────────────── */}
           <div className="camera-panel">
 
-            {/* Baseline establishment */}
-            {recordState === 'baseline' && (
-              <div className="panel-block">
-                <div className="panel-block-label">Establishing baseline</div>
-                <div className="baseline-track">
-                  <div className="baseline-fill" style={{ width: `${baselineProgress}%` }} />
-                </div>
-                <div className="panel-hint">
-                  Stand naturally — this records your resting shoulder and head position as a reference.
-                </div>
-              </div>
-            )}
-
-            {/* Recording status */}
-            {recordState !== 'baseline' && (
-              <div className="panel-block status-block">
-                <span className={`rec-dot ${recordState === 'recording' ? 'rec-dot-live' : ''}`} />
-                <span className="status-label">
-                  {recordState === 'recording' ? 'Recording phrase…' :
-                   recordState === 'done'      ? 'Phrase complete' :
-                                                 'Ready'}
-                </span>
-              </div>
-            )}
-
-            {/* Live metrics */}
-            <div className="panel-block">
-              <div className="metrics-heading">Live metrics</div>
-              <div className="metrics-list">
-
-                {/* Shoulder tension — continuous bar + three-level label */}
-                <div className="metric-row metric-row-col">
-                  <div className="metric-row-top">
-                    <span className="metric-label">Shoulders</span>
-                    <span className={`metric-value metric-${
-                      !metrics?.shouldersVisible ? 'off' :
-                      currentLevel === 'raised'  ? 'raised' :
-                      currentLevel === 'tension' ? 'warn' : 'ok'
-                    }`}>
-                      {!metrics?.shouldersVisible ? '—' :
-                       currentLevel === 'raised'  ? 'raised' :
-                       currentLevel === 'tension' ? 'mild tension' :
-                       currentLevel === 'settled' ? 'settled' : '—'}
-                    </span>
-                  </div>
-                  <div className="shoulder-bar-track">
-                    <div
-                      className={`shoulder-bar-fill shoulder-bar-${currentLevel ?? 'off'}`}
-                      style={{ width: `${currentElevPct}%` }}
-                    />
-                    {/* Threshold tick marks */}
-                    <div className="shoulder-bar-tick" style={{ left: '20%' }} />
-                    <div className="shoulder-bar-tick" style={{ left: '63%' }} />
-                  </div>
-                </div>
-
-                {/* Shoulder asymmetry */}
-                {asymVisible && (
-                  <MetricRow
-                    label="Asymmetry"
-                    value={asymNotable ? 'one side higher' : 'even'}
-                    status={asymNotable ? 'warn' : 'ok'}
-                    indent
-                  />
-                )}
-
-                <MetricRow
-                  label="Head"
-                  value={metrics?.headForward != null
-                    ? isHeadForward ? 'forward' : 'aligned'
-                    : '—'}
-                  status={metrics?.shouldersVisible ? (isHeadForward ? 'warn' : 'ok') : 'off'}
-                />
-                <MetricRow
-                  label="Jaw open"
-                  value={jawPct != null ? `${jawPct}%` : '—'}
-                  status={metrics?.faceVisible
-                    ? (jawPct != null && jawPct < 18 ? 'warn' : 'ok')
-                    : 'off'}
-                />
-                <MetricRow
-                  label="Mouth shape"
-                  value={mouthShape ?? '—'}
-                  status={metrics?.faceVisible
-                    ? (mouthShape === 'spread' ? 'warn' : 'ok')
-                    : 'off'}
-                />
-              </div>
-            </div>
+            <CameraLiveMetricsPanel
+              variant="full"
+              recordState={recordState}
+              baselineProgress={baselineProgress}
+              metrics={metrics}
+              currentLevel={currentLevel}
+              currentElevPct={currentElevPct}
+              isHeadForward={isHeadForward}
+              jawPct={jawPct}
+              mouthShape={mouthShape}
+              asymVisible={asymVisible}
+              asymNotable={asymNotable}
+            />
 
             {/* Phrase controls */}
             {recordState !== 'baseline' && (
@@ -900,24 +755,6 @@ export default function CameraObservationLab({ onHome, embedded = false, onClose
 
         </div>
       </main>
-    </div>
-  )
-}
-
-// ── MetricRow sub-component ────────────────────────────────────────────────────
-
-function MetricRow({
-  label, value, status, indent,
-}: {
-  label: string
-  value: string
-  status: 'ok' | 'warn' | 'raised' | 'off'
-  indent?: boolean
-}) {
-  return (
-    <div className={`metric-row${indent ? ' metric-row-indent' : ''}`}>
-      <span className="metric-label">{label}</span>
-      <span className={`metric-value metric-${status}`}>{value}</span>
     </div>
   )
 }

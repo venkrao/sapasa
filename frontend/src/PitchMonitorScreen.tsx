@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import PitchGraph from './PitchGraph'
 import { SA_HZ, SHRUTI_LIST, swaraHz } from './swaras'
 import ExercisePanel from './ExercisePanel'
 import TanpuraStrip from './TanpuraStrip'
+import CameraObservationLab from './CameraObservationLab'
 import { RAGAS, getExercise } from './exerciseCatalog'
 import { deriveFlatSequence } from './exerciseModel'
 import type { RagaDefinition, SequenceStep } from './exerciseModel'
@@ -52,6 +55,58 @@ export default function PitchMonitorScreen({ onHome }: Props) {
   const [showHoldAnnotations, setShowHoldAnnotations] = useState(false)
   const [loopExercise, setLoopExercise] = useState(false)
   const loopExerciseRef = useRef(false)
+
+  // Camera PiP
+  const [showCamera, setShowCamera] = useState(false)
+  const [pipPos, setPipPos] = useState({ x: 16, y: 16 })
+  const [pipSize, setPipSize] = useState({ w: 320, h: 420 })
+  const pipDraggingRef = useRef(false)
+  const pipResizingRef = useRef(false)
+  /** Pitch graph column — used to position the camera PiP in viewport space (portal). */
+  const graphLeftRef = useRef<HTMLDivElement>(null)
+  /** Bumps when graph-left moves/resizes so fixed PiP position stays aligned. */
+  const [pipAnchorTick, setPipAnchorTick] = useState(0)
+
+  useLayoutEffect(() => {
+    if (!showCamera) return
+    const bump = () => setPipAnchorTick(t => t + 1)
+    const el = graphLeftRef.current
+    const ro = el ? new ResizeObserver(bump) : null
+    if (el && ro) ro.observe(el)
+    window.addEventListener('scroll', bump, true)
+    window.addEventListener('resize', bump)
+    bump()
+    return () => {
+      ro?.disconnect()
+      window.removeEventListener('scroll', bump, true)
+      window.removeEventListener('resize', bump)
+    }
+  }, [showCamera])
+
+  const pipPortalStyle = useMemo((): CSSProperties => {
+    const el = graphLeftRef.current
+    if (!el) {
+      return {
+        position: 'fixed',
+        left: 0,
+        bottom: 0,
+        width: pipSize.w,
+        height: pipSize.h,
+        zIndex: 10000,
+        visibility: 'hidden',
+      }
+    }
+    const rect = el.getBoundingClientRect()
+    return {
+      position: 'fixed',
+      left: rect.left + pipPos.x,
+      bottom: window.innerHeight - rect.bottom + pipPos.y,
+      width: pipSize.w,
+      height: pipSize.h,
+      zIndex: 10000,
+      visibility: 'visible',
+    }
+  }, [showCamera, pipPos, pipSize, pipAnchorTick])
 
   // Session timer
   const [sessionElapsed, setSessionElapsed] = useState(0)
@@ -237,6 +292,57 @@ export default function PitchMonitorScreen({ onHome }: Props) {
     setListening(listeningRef.current)
   }
 
+  function startPipDrag(e: React.PointerEvent<HTMLDivElement>) {
+    pipDraggingRef.current = true
+    const startX = e.clientX
+    const startY = e.clientY
+    const startLeft = pipPos.x
+    const startBottom = pipPos.y
+    try { document.body.style.userSelect = 'none' } catch { /* ignore */ }
+
+    const onMove = (ev: PointerEvent) => {
+      if (!pipDraggingRef.current) return
+      setPipPos({
+        x: Math.max(0, startLeft + (ev.clientX - startX)),
+        y: Math.max(0, startBottom - (ev.clientY - startY)),
+      })
+    }
+    const onUp = () => {
+      pipDraggingRef.current = false
+      try { document.body.style.userSelect = '' } catch { /* ignore */ }
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+    window.addEventListener('pointermove', onMove, { passive: true })
+    window.addEventListener('pointerup', onUp, { passive: true })
+  }
+
+  function startPipResize(e: React.PointerEvent<HTMLDivElement>) {
+    e.stopPropagation()
+    pipResizingRef.current = true
+    const startX = e.clientX
+    const startY = e.clientY
+    const startW = pipSize.w
+    const startH = pipSize.h
+    try { document.body.style.userSelect = 'none' } catch { /* ignore */ }
+
+    const onMove = (ev: PointerEvent) => {
+      if (!pipResizingRef.current) return
+      setPipSize({
+        w: Math.max(240, startW + (ev.clientX - startX)),
+        h: Math.max(280, startH + (ev.clientY - startY)),
+      })
+    }
+    const onUp = () => {
+      pipResizingRef.current = false
+      try { document.body.style.userSelect = '' } catch { /* ignore */ }
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+    window.addEventListener('pointermove', onMove, { passive: true })
+    window.addEventListener('pointerup', onUp, { passive: true })
+  }
+
   const onReferencePlaybackStart = useCallback((suppressMs: number) => {
     exerciseMatchSuppressUntilRef.current = performance.now() + suppressMs
     stableMatchCountRef.current = 0
@@ -353,6 +459,7 @@ export default function PitchMonitorScreen({ onHome }: Props) {
   }
 
   return (
+    <>
     <div className="app">
       <header className="header">
         <span className="app-name">SaPaSa</span>
@@ -378,6 +485,14 @@ export default function PitchMonitorScreen({ onHome }: Props) {
             title={showHoldAnnotations ? 'Hide hold duration annotations' : 'Show how long each in-tune note was held'}
           >
             {showHoldAnnotations ? '⏱ Holds on' : '⏱ Holds'}
+          </button>
+          <button
+            className={'listen-button ' + (showCamera ? 'on' : 'off')}
+            onClick={() => setShowCamera(v => !v)}
+            type="button"
+            title={showCamera ? 'Hide camera' : 'Show camera (watch posture & shoulders)'}
+          >
+            📷 Cam
           </button>
 
           {/* Session timer */}
@@ -444,7 +559,7 @@ export default function PitchMonitorScreen({ onHome }: Props) {
       <TanpuraStrip saHz={effectiveSaHz} shrutiSummary={shrutiSummary} />
 
       <div className="graph-container">
-        <div className="graph-left">
+        <div className="graph-left" ref={graphLeftRef}>
           <PitchGraph
             saHz={effectiveSaHz}
             paused={!listening}
@@ -533,7 +648,7 @@ export default function PitchMonitorScreen({ onHome }: Props) {
         {note ? (
           <div
             className="note-current"
-            style={{ '--note-color': centsColor(note.cents) } as React.CSSProperties}
+            style={{ '--note-color': centsColor(note.cents) } as CSSProperties}
           >
             <span className="note-swara">{note.swara}</span>
             <span className="note-cents">{formatCents(note.cents)}</span>
@@ -547,6 +662,32 @@ export default function PitchMonitorScreen({ onHome }: Props) {
         )}
       </div>
     </div>
+
+    {showCamera &&
+      createPortal(
+        <div className="camera-pip camera-pip-portal" style={pipPortalStyle}>
+          <div className="camera-pip-handle" onPointerDown={startPipDrag}>
+            <span>📷 Camera</span>
+            <button
+              type="button"
+              className="camera-pip-close"
+              onClick={() => setShowCamera(false)}
+              title="Close camera"
+            >
+              ✕
+            </button>
+          </div>
+          <CameraObservationLab
+            embedded
+            embeddedPip
+            onHome={() => setShowCamera(false)}
+            onClose={() => setShowCamera(false)}
+          />
+          <div className="camera-pip-resize" onPointerDown={startPipResize} title="Drag to resize" />
+        </div>,
+        document.body,
+      )}
+    </>
   )
 }
 
