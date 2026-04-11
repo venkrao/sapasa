@@ -1,95 +1,172 @@
-# SaPaSa
+# SaPaSa — a practice companion for singers
 
-A Carnatic pitch training tool for desktop (macOS / Windows / Linux). Listens to your voice and shows live cents deviation against Just Intonation (JI) swarasthanas for the selected shruti.
+**SaPaSa** is a desktop web app for **Carnatic vocal practice** and related skills. It runs in your browser and, for live pitch tracking, uses a small **Python audio server** that reads your microphone. Think of it as a practice room helper: you sing, and the app shows **where your pitch sits** relative to Just Intonation (JI) swarasthanas, helps you **train your ear**, work on **breath and body**, and optionally **watch posture** with your camera — all on your machine.
 
-## Requirements
+This guide is written for **music students** starting from zero with the project. You do **not** need to read code to use it.
 
-- Python 3.10+
-- Node.js 18+
+---
 
-## Setup
+## What you need
 
-### Backend
+| | |
+|--|--|
+| **Computer** | macOS, Windows, or Linux |
+| **Browser** | A recent Chrome, Edge, or Firefox (Safari often works; use Chromium-based if in doubt) |
+| **Microphone** | Built-in or external — place yourself at a comfortable distance |
+| **Python** | 3.10 or newer (only for **Carnatic Training** and **Organ Training** features that talk to the server) |
+| **Node.js** | 18 or newer (to build and run the web UI) |
+
+**Headphones** are strongly recommended for **Ear Training** (and any module that plays reference tones), so synthesized sound does not confuse what the mic hears.
+
+---
+
+## Install and run (first time)
+
+You will use **two terminals**: one for the audio server, one for the web app.
+
+### 1. Backend (Python) — microphone & pitch analysis
 
 ```bash
 cd backend
 python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
 ```
 
-### Frontend
+Activate the virtual environment:
+
+- **macOS / Linux:** `source .venv/bin/activate`
+- **Windows (cmd):** `.venv\Scripts\activate.bat`
+- **Windows (PowerShell):** `.venv\Scripts\Activate.ps1`
+
+Then:
+
+```bash
+pip install -r requirements.txt
+python main.py
+```
+
+Leave this running. It starts an API/WebSocket server (default **port 8765**) and opens the microphone. The first run may ask for **microphone permission** (OS-dependent).
+
+### 2. Frontend (web UI)
 
 ```bash
 cd frontend
 npm install
-```
-
-## Running
-
-**Terminal 1 — start the Python audio server:**
-
-```bash
-cd backend
-source .venv/bin/activate
-python main.py
-```
-
-**Terminal 2 — start the UI:**
-
-```bash
-cd frontend
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) in your browser.
+Open **[http://localhost:5173](http://localhost:5173)** in your browser.
 
-The Python backend uses your system microphone:
+### 3. Home screen
 
-- **macOS**: you may be prompted for microphone access the first time you start `python main.py`.
-- **Windows**: ensure microphone permission is enabled for desktop apps in Windows Privacy settings.
-- **Linux**: ensure your audio stack (PipeWire/PulseAudio/ALSA) has an input device available.
+You’ll see **SaPaSa** and five practice modules. Use **← Home** (or equivalent) inside any module to return here.
 
-## Currently supported
+---
 
-The app opens a **home screen** with two modules (both are early / learning-focused; data is limited on purpose).
+## The five modules (what each one is for)
 
-### Pitch Monitor (live microphone — requires the Python backend)
+### Carnatic Training (live pitch — needs the Python server)
 
-- **Shruti**: header selector lists **Carnatic kattai** (½-kattai steps) with a Western note name and Hz; this sets **Sa** for both the JI grid and pitch matching.
-- **Tanpura drone** (optional): synthesized rolling **JI Sa — Pa — Sa′** (Pa can be unchecked) under the header — tempo fixed at **40 BPM**, volume **−20…0 dB**, **Tone.js** + light reverb; ties to the selected shruti when you change it. Uses speakers — can interfere with the mic like any playback.
-- **Live readout**:
-  - **Western note** (ET nearest semitone), **large and color-matched** to intonation, **centered in the header**.
-  - **Carnatic swara** (nearest JI swarasthana) + **cents** from that target + a short **in tune / sharp / flat** label in the **bottom** bar.
-- **Pitch graph**:
-  - **3-octave** log-frequency viewport that **tracks** your singing (median pitch over ~2s, smoothed); **large jumps or notes outside the frame snap / recenter** so the trace stays usable after manual panning.
-  - **Drag** vertically to pan; auto-follow pauses briefly after drag, or **resumes immediately** if you sing **outside** the current view (unless you are still holding the pointer).
-  - **~60s** scrolling history; grid shows Western chromatic lines with **Western names on the left** and **JI swara bands** with **Carnatic labels on the right**.
-- **Guided exercises** (sidebar): pick raga **Mayamalavagowla** (Adi tala today in data), then either:
-  - **Arohanam & Avarohanam** (generated from the raga’s scale), or
-  - **Sarali Varisai 1**, **Janta Varisai 1**, **Daatu Varisai 1**, **Melsthayi Varisai 1**, **Madhya Sthayi Varisai 1**, **Mandra Sthayi Varisai 1**, **Alankaram 1** (Dhruva talam).
-  - While an exercise runs, the graph can **emphasize the expected swara** and **dim** out-of-scale positions; matching advances when you **hold** the expected pitch within tolerance.
-  - Optional **Play note** plays a **reference tone** for the current expected swara (Tone.js in your browser) — matching is **ignored briefly** right after playback so speaker bleed doesn’t skip steps.
+This is the **main pitch monitor** for serious singing practice.
 
-### Ear Training (browser audio only — no Python)
+1. **Start the backend** (`python main.py`) before you rely on live pitch; the UI connects over the network to analyze your voice.
+2. **Shruti (kattai)** — Pick your **Sa** reference (Carnatic kattai with Western name and Hz). Everything — graph, exercises, optional drone — follows this Sa.
+3. **Listen / Pause listening** — Turns live pitch detection on or off. Pausing freezes the graph without leaving the screen.
+4. **Tanpura strip** — Optional **synthetic tanpura** (Sa–Pa drone, volume, Pa on/off). It uses **your speakers**; if it is loud, it can leak into the mic and confuse pitch detection — keep drone level moderate or use headphones for reference tracks elsewhere.
+5. **Pitch graph** — A scrolling view of your pitch over time against a **JI swara** grid. Colors show **how close** you are to the nearest swarasthana (green ≈ on pitch, warmer/redder = further off). You can **drag** the view vertically; it recenters when you jump registers.
+6. **Sidebar exercises** — Choose a **raga** and an **exercise** (e.g. arohanam/avarohanam, varisai-style material). While an exercise runs, the app can highlight the **expected swara** and advance when you **hold** the right pitch within tolerance. **Play note** plays a reference tone; the app briefly ignores matching so speaker bleed does not skip steps.
+7. **⏱ Holds** — Optional labels for **how long** you sustain stable, in-tune segments on the graph.
+8. **📷 Cam** — Optional small **camera overlay** on the graph (shoulders/posture hints). Drag the header to move it; drag the corner to resize.
+9. **Session timer**, **octave shift**, and **Home** are self-explanatory; hover controls for short tips where provided.
 
-- **Swara keyboard** for the full **16-name** layout (including shared-pitch pairs like Ri2/Ga1); playback uses **JI ratios** from a chosen **base Sa** (presets from **C3** through **B3**, plus **C4** default).
-- **Note length** slider and **tone presets**: **Piano** (multisampled via `@tonejs/piano`), **Guitar-ish**, pure **sine**, **triangle**; **headphones recommended** for quiz.
-- **Quiz**: plays a random swara; you pick the answer; scoring counts **alias** names as correct where pitches coincide.
+If something says **not connected**, ensure `python main.py` is running and nothing else is blocking port **8765**.
 
-### Scope / not here yet
+---
 
-- **One raga** (`Mayamalavagowla`) and the exercises bundled with it — no other ragas in the catalog yet.
-- Pitch detection is **fundamental-only** (YIN on mono input); **no** separate tāla / rhythm tutor beyond what’s encoded in exercise notation.
+### Ear Training (browser only — no Python required)
 
-## How it works
+- A **swara keyboard** with **Just Intonation** ratios from a chosen **base Sa**.
+- Adjustable **note length** and **tone** presets (e.g. piano, sine).
+- A **quiz mode** that plays a random swara and scores your guesses (including **alias** names where two syllables share the same pitch).
 
-The backend estimates your fundamental frequency (Hz) and the frontend renders it over time.
-For swara identification, the app builds a JI frequency grid from the selected Sa and finds the nearest swarasthana.
+Use **headphones** so the quiz tones stay clear and do not feed back into a mic if one is active.
 
-The colour indicates how close you are to the nearest swarasthana:
+---
 
-- **Green** — within ±10¢ (in tune)
-- **Amber** — ±10–25¢ (needs work)
-- **Red** — ±25–50¢ (significantly off)
-- **Dim grey** — more than ±50¢ from any swarasthana
+### Organ Training (physical singing technique)
+
+- Guided **breath and vocal-organ** exercises (e.g. hisses, timed breath work) in a two-column layout: **exercise list** on the left, **active exercise** on the right.
+- **Progress Graph** (top right, next to the camera control) opens a **progress tracker** with charts tied to your practice data.
+- **Watch shoulders** turns on an **embedded camera** view with live posture metrics (shoulders, head, jaw, etc.). Video is processed **in the browser**; follow your browser’s camera permission prompts.
+- Some completions are saved via the **same backend** (exercise sessions API) when the server is running.
+
+---
+
+### Consonant Training
+
+- Structured material on **consonants** in singing — plosives, nasals, fricatives — with **beginner / intermediate / advanced** style progression and **drill** ideas.
+- This module is **guidance-first**; it does not replace a teacher’s ear.
+
+---
+
+### Camera Lab
+
+- Full-screen **camera observation** for **posture and alignment** (shoulders, head, jaw, mouth shape) with the same live metrics stack used in embedded camera views.
+- Useful when you want to focus on **body habits** without the pitch graph.
+- **Privacy:** video stays **local** to your browser session; nothing is uploaded by this app.
+
+---
+
+## Tips for reliable pitch tracking (Carnatic Training)
+
+1. **Run the Python server** and accept **microphone** access.
+2. Prefer a **quiet room** and a stable mic position.
+3. Keep **speaker playback** (tanpura, YouTube, etc.) at a level that does **not** dominate what the mic hears, or use **headphones** for anything you play from the computer.
+4. If the trace is jumpy, check for fans, noise, or clipping.
+
+---
+
+## Data and privacy (short)
+
+- **Pitch audio** is analyzed **locally** by the Python process; the UI receives **events** (e.g. note / idle), not recordings stored as sound files by default in this flow.
+- **Exercise session durations** for some organ exercises can be stored in a local **SQLite** database (`backend/sapasa.db`) when the backend is used.
+- **Camera** frames are handled in the **browser** for visualization and metrics; read your browser’s own privacy settings for site permissions.
+
+---
+
+## Troubleshooting
+
+| Problem | Things to try |
+|--------|----------------|
+| No live pitch / disconnected | Start `python main.py` from `backend`; check firewall on **8765**. |
+| No microphone | OS privacy settings → allow terminal/Python (or your IDE) to use the mic. |
+| Strange pitch when tanpura is loud | Lower drone volume or use headphones for other audio. |
+| Frontend won’t start | `cd frontend && npm install` then `npm run dev`; need Node 18+. |
+
+---
+
+## For developers (repo layout)
+
+| Path | Role |
+|------|------|
+| `backend/` | FastAPI + WebSocket pitch stream, aubio YIN pitch, Carnatic/JI helpers, SQLite session storage |
+| `frontend/` | React + Vite + TypeScript UI (Tone.js, MediaPipe for camera features) |
+
+Build production assets: `cd frontend && npm run build` — output under `frontend/dist/`.
+
+---
+
+## Limitations (honest scope)
+
+- Pitch detection is **fundamental-frequency** based; it reflects what a typical monophonic pitch tracker hears — not a full substitute for a guru’s ear or a DAW-grade analysis suite.
+- **Raga / exercise catalog** grows over time but is **bounded**; check the in-app lists for what is available today.
+- **Tāla** and rhythm are not a dedicated tutor beyond what exercises encode in their notation.
+
+---
+
+## License and contributing
+
+If the repository publishes a **LICENSE** file, follow that document. For changes and issues, use your project’s normal Git hosting workflow (e.g. issues and pull requests on GitHub).
+
+---
+
+*Happy practice — SaPaSa is a tool to support your riyaz, not a replacement for listening deeply and studying with a knowledgeable teacher.*
