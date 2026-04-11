@@ -512,6 +512,35 @@
 }
 
 /*
+ * Organ training (embedded, not PiP): two equal flex:1 children used to split video vs
+ * metrics 50/50, leaving a short wide frame and letterboxing/skewed-looking video. Prefer
+ * the camera band like PiP — most height to the feed, compact metrics row that scrolls.
+ */
+.camera-embedded-active:not(.camera-embedded--pip) {
+  display: grid !important;
+  grid-template-columns: 1fr;
+  grid-template-rows: minmax(0, 3fr) minmax(0, 1.15fr);
+  flex-direction: unset !important;
+  min-height: 0;
+}
+
+.camera-embedded-active:not(.camera-embedded--pip) .camera-embedded-feed {
+  flex: unset;
+  min-height: 0;
+}
+
+.camera-embedded-active:not(.camera-embedded--pip) .camera-embedded-metrics {
+  flex: unset;
+  min-height: 0;
+  max-height: none;
+}
+
+.camera-embedded-active:not(.camera-embedded--pip) .camera-embedded-metrics-stack {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+/*
  * Carnatic training PiP: nested flex + % heights on indefinite parents can collapse the
  * metrics row to 0 after paint. Use only `fr` rows (no %) so both bands get a definite share
  * of the grid container’s height.

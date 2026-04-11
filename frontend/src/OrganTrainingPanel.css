@@ -808,8 +808,15 @@
   border-radius: 99px;
   padding: 3px 10px;
   white-space: nowrap;
-  /* push it to the right of the title, camera button stays at the far end */
+  /* Absorb space so Progress Graph + camera stay at the top-right */
   margin-right: auto;
+}
+
+.organ-active-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .organ-active-title {
@@ -840,6 +847,30 @@
   background: rgba(251,191,36,0.1);
   border-color: rgba(251,191,36,0.3);
   color: rgba(251,191,36,0.9);
+}
+
+.organ-progress-graph-btn {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 7px;
+  border: 1px solid rgba(102,119,187,0.35);
+  background: rgba(102,119,187,0.08);
+  color: rgba(153,170,222,0.95);
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms, color 120ms;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.organ-progress-graph-btn:hover {
+  background: rgba(102,119,187,0.14);
+  border-color: rgba(102,119,187,0.5);
+  color: #c4cef0;
+}
+.organ-progress-graph-btn.active {
+  background: rgba(102,119,187,0.18);
+  border-color: rgba(102,119,187,0.55);
+  color: #dce2f8;
 }
 
 /* Body: side-by-side guide + camera when camera open */
@@ -904,45 +935,6 @@
 }
 .organ-exercise-exit-btn:hover {
   background: rgba(248,113,113,0.12);
-}
-
-/* ── Progress FAB ───────────────────────────────────────────────────── */
-.progress-fab {
-  position: absolute;
-  bottom: 20px;
-  right: 20px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 14px 7px 12px;
-  border-radius: 20px;
-  border: 1px solid rgba(102,119,187,0.25);
-  background: rgba(14,14,22,0.92);
-  color: #6677bb;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  cursor: pointer;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  transition: border-color 120ms, background 120ms, color 120ms;
-  z-index: 10;
-}
-.progress-fab:hover {
-  border-color: rgba(102,119,187,0.5);
-  color: #99aade;
-}
-.progress-fab-active {
-  border-color: rgba(102,119,187,0.45);
-  background: rgba(20,20,40,0.95);
-  color: #99aade;
-}
-.progress-fab-icon {
-  font-size: 0.9rem;
-  line-height: 1;
-}
-.progress-fab-label {
-  text-transform: uppercase;
 }
 
 /* ── Progress drawer ────────────────────────────────────────────────── */

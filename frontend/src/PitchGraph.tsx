@@ -379,7 +379,7 @@ export default function PitchGraph({
       if (showHoldAnnotationsRef.current && pts.length > 1) {
         const MIN_HOLD_MS  = 800
         // A hold ends only after this much continuous silence (no voiced frames)
-        const PAUSE_END_MS = 1000
+        const PAUSE_END_MS = 300
 
         type HoldRun = {
           startT: number; endT: number
@@ -412,7 +412,7 @@ export default function PitchGraph({
             lastVoicedT = p.t
             runFreqs.push(p.freq)
           } else {
-            // Silence frame — only break the hold after > 1 s of no audio
+            // Silence frame — only break the hold after this much gap with no voiced frames
             if (runStart !== null && lastVoicedT !== null && p.t - lastVoicedT > PAUSE_END_MS) {
               closeRun(lastVoicedT)
             }

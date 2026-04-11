@@ -404,13 +404,24 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
                     {sessionRepCount}× this session
                   </span>
                 )}
-                <button
-                  type="button"
-                  className={`organ-camera-toggle ${showCamera ? 'active' : ''}`}
-                  onClick={() => setShowCamera(v => !v)}
-                >
-                  {showCamera ? '✕ Hide camera' : '📷 Watch shoulders'}
-                </button>
+                <div className="organ-active-header-actions">
+                  <button
+                    type="button"
+                    className={`organ-progress-graph-btn${showTracker ? ' active' : ''}`}
+                    onClick={() => setShowTracker(v => !v)}
+                    aria-pressed={showTracker}
+                    aria-label={showTracker ? 'Close progress graph' : 'Open progress graph'}
+                  >
+                    Progress Graph
+                  </button>
+                  <button
+                    type="button"
+                    className={`organ-camera-toggle ${showCamera ? 'active' : ''}`}
+                    onClick={() => setShowCamera(v => !v)}
+                  >
+                    {showCamera ? '✕ Hide camera' : '📷 Watch shoulders'}
+                  </button>
+                </div>
               </div>
 
               {/* Body: guide + optional camera */}
@@ -467,19 +478,6 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
         })()}
       </div>
 
-      {/* ── Progress FAB ────────────────────────────────────────────────── */}
-      {activeExercise && (
-        <button
-          type="button"
-          className={`progress-fab${showTracker ? ' progress-fab-active' : ''}`}
-          onClick={() => setShowTracker(v => !v)}
-          aria-label="Toggle progress tracker"
-        >
-          <span className="progress-fab-icon">↗</span>
-          <span className="progress-fab-label">Progress</span>
-        </button>
-      )}
-
       {/* ── Progress drawer overlay ─────────────────────────────────────── */}
       {showTracker && (
         <div
@@ -487,7 +485,7 @@ export default function OrganTrainingPanel({ panelWidthPx }: Props) {
           onMouseDown={e => { if (e.target === e.currentTarget) setShowTracker(false) }}
           role="dialog"
           aria-modal="true"
-          aria-label="Progress tracker"
+          aria-label="Progress graph"
         >
           <div className="progress-drawer-panel">
             <div className="progress-drawer-header">
