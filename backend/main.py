@@ -18,6 +18,7 @@ from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 import carnatic_engine
+from coach_api import coach_ring_append, router as coach_router
 
 # ── Persistent storage ────────────────────────────────────────────────────────
 
@@ -87,6 +88,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(lifespan=lifespan)
+app.include_router(coach_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -166,8 +168,13 @@ def _process_audio() -> None:
 
 
 def _audio_callback(indata: np.ndarray, frames: int, time_info, status) -> None:
+    mono = indata[:, 0].astype(np.float32)
     try:
-        _audio_queue.put_nowait(indata[:, 0].astype(np.float32))
+        coach_ring_append(mono)
+    except Exception:
+        pass
+    try:
+        _audio_queue.put_nowait(mono)
     except queue.Full:
         pass  # drop if the processing thread is behind
 

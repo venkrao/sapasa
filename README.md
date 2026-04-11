@@ -153,6 +153,31 @@ Use **headphones** so the quiz tones stay clear and do not feed back into a mic 
 
 Build production assets: `cd frontend && npm run build` — output under `frontend/dist/`.
 
+### AI vocal coach (optional — Apple Silicon)
+
+The backend can run a **local Qwen2.5-Omni** model for natural-language practice feedback (see `specs/spec-llm-vocal-coach.md`). On **Mac with M1/M2/M3/M4**, inference uses **MLX** in the same Python process as the pitch server — not vLLM (CUDA).
+
+Create `backend/.venv` and install **base** dependencies first (`pip install -r requirements.txt` as in the backend section above). Then **one-time coach setup** from the **repository root** (installs `mlx-lm-omni` into `backend/.venv` and **pre-downloads** the default MLX checkpoint from Hugging Face; expect a long run and several gigabytes of disk):
+
+```bash
+./scripts/local-omni-llm-server.sh --mlx-setup
+```
+
+Use `./scripts/local-omni-llm-server.sh --mlx-model HF/model-id --mlx-setup` if you want a different checkpoint. If a repo is gated, run `huggingface-cli login` or set `HF_TOKEN` first.
+
+**Run the backend with the coach enabled:**
+
+```bash
+cd backend
+source .venv/bin/activate
+export SAPASA_COACH_MLX_MODEL=giangndm/qwen2.5-omni-3b-mlx-4bit
+python main.py
+```
+
+Confirm the coach is using MLX: `curl -s http://127.0.0.1:8765/coach/health` should show `"inference":"mlx"`. More options: `./scripts/local-omni-llm-server.sh --apple-silicon-help`.
+
+**Linux + NVIDIA:** use an OpenAI-compatible **vLLM** server instead; see `./scripts/local-omni-llm-server.sh --help` and `--print-sapasa-env`.
+
 ---
 
 ## Limitations (honest scope)

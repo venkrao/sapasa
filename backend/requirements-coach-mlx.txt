@@ -1,0 +1,11 @@
+# Optional: real Qwen2.5-Omni inference on Apple Silicon (M1/M2/M3/M4).
+# Install in the same venv as the pitch server, then set SAPASA_COACH_MLX_MODEL.
+#
+#   pip install -r requirements-coach-mlx.txt
+#
+# Example model (3B 4-bit, fits most M-series machines):
+#   export SAPASA_COACH_MLX_MODEL=giangndm/qwen2.5-omni-3b-mlx-4bit
+#
+# Upstream: https://github.com/giangndm/mlx-lm-omni
+
+git+https://github.com/giangndm/mlx-lm-omni.git
