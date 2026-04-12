@@ -38,6 +38,13 @@ export type ExercisePanelProps = {
 
   // Optional fixed width override (used for draggable divider resizing).
   panelWidthPx?: number
+
+  /** AI vocal coach (Carnatic Training sidebar) — Phase 2 */
+  coachEnabled?: boolean
+  onAskCoach?: () => void
+  coachLoading?: boolean
+  coachError?: string | null
+  coachHistory?: { text: string; at: number; mock?: boolean }[]
 }
 
 /** Playback length passed to the synth — keep in sync with `playExpectedNote`. */
@@ -109,6 +116,11 @@ export default function ExercisePanel({
   saHz,
   onReferencePlaybackStart,
   panelWidthPx,
+  coachEnabled = false,
+  onAskCoach,
+  coachLoading = false,
+  coachError = null,
+  coachHistory = [],
 }: ExercisePanelProps) {
   const audioRef = useRef<EarTrainerAudioEngine | null>(null)
   const playsThisStepRef = useRef(0)
@@ -490,6 +502,49 @@ export default function ExercisePanel({
           )
         })}
       </div>
+
+      {coachEnabled && onAskCoach ? (
+        <div className="coach-section">
+          <div className="coach-section-head">
+            <span className="coach-section-title">AI Coach</span>
+          </div>
+          <button
+            type="button"
+            className="exercise-btn coach-ask-btn"
+            onClick={onAskCoach}
+            disabled={coachLoading}
+            title="Send the last several seconds from the practice mic to your local coach for brief feedback (requires the Python backend)."
+          >
+            {coachLoading ? 'Coach is thinking…' : 'Ask Coach'}
+          </button>
+          {coachError ? <p className="coach-error">{coachError}</p> : null}
+          {coachHistory.length === 0 && !coachLoading && !coachError ? (
+            <p className="coach-hint">
+              After you sing, tap Ask Coach for feedback on the last few seconds of audio (local
+              analysis).
+            </p>
+          ) : null}
+          {coachHistory.length > 0 ? (
+            <ul className="coach-history" aria-label="Coach responses this session">
+              {[...coachHistory].reverse().map((entry, idx) => (
+                <li key={entry.at + '-' + idx} className="coach-card">
+                  <div className="coach-card-meta">
+                    <time dateTime={new Date(entry.at).toISOString()}>
+                      {new Date(entry.at).toLocaleTimeString(undefined, {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                      })}
+                    </time>
+                    {entry.mock ? <span className="coach-mock-badge">Mock</span> : null}
+                  </div>
+                  <p className="coach-card-text">{entry.text}</p>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
     </aside>
   )
 }

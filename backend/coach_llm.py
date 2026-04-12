@@ -9,6 +9,7 @@ from typing import Any
 import httpx
 import numpy as np
 
+from coach_logging import log_http_chat_completions_request
 from coach_ring import SAMPLE_RATE, pcm_wav_bytes_mono_float32
 
 DEFAULT_MODEL = "Qwen2.5-Omni-7B"
@@ -96,6 +97,13 @@ async def request_coach_completion(
     headers: dict[str, str] = {"Content-Type": "application/json"}
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
+
+    log_http_chat_completions_request(
+        base_url=base_url,
+        model=model,
+        payload=payload,
+        wav_bytes_len=len(wav_bytes),
+    )
 
     timeout = httpx.Timeout(120.0, connect=10.0)
     async with httpx.AsyncClient(base_url=base_url.rstrip("/"), timeout=timeout) as client:

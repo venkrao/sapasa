@@ -11,6 +11,9 @@ import { deriveFlatSequence } from './exerciseModel'
 import type { RagaDefinition, SequenceStep } from './exerciseModel'
 
 const WS_URL = 'ws://localhost:8765/ws'
+/** Same host/port as `python main.py` — REST coach API. */
+const PITCH_HTTP_ORIGIN = 'http://127.0.0.1:8765'
+const COACH_CLIP_SECONDS = 15
 const RECONNECT_DELAY_MS = 2000
 const AROHANAM_AVAROHANAM_EXERCISE_ID = '__arohanam_avarohanam__'
 
@@ -107,6 +110,13 @@ export default function PitchMonitorScreen({ onHome }: Props) {
       visibility: 'visible',
     }
   }, [showCamera, pipPos, pipSize, pipAnchorTick])
+
+  // AI Coach (session-scoped history; not persisted)
+  const [coachHistory, setCoachHistory] = useState<{ text: string; at: number; mock?: boolean }[]>(
+    [],
+  )
+  const [coachLoading, setCoachLoading] = useState(false)
+  const [coachError, setCoachError] = useState<string | null>(null)
 
   // Session timer
   const [sessionElapsed, setSessionElapsed] = useState(0)
@@ -358,6 +368,56 @@ export default function PitchMonitorScreen({ onHome }: Props) {
   const totalSteps = flatSequence.length
 
   const canStart = !!selectedRagaId && !!selectedExerciseId && totalSteps > 0
+
+  const exerciseLabelForCoach = useMemo(() => {
+    if (!selectedExerciseId || !selectedRagaId) return ''
+    if (isAroAvaroExercise) return 'Arohanam & Avarohanam'
+    return selectedExercise?.label ?? selectedExerciseId
+  }, [selectedExerciseId, selectedRagaId, isAroAvaroExercise, selectedExercise?.label])
+
+  const askCoach = useCallback(async () => {
+    setCoachLoading(true)
+    setCoachError(null)
+    const shruti = SHRUTI_LIST.find(x => x.hz === saHz)
+    const ragaLabel = selectedRaga?.label ?? ''
+    try {
+      const res = await fetch(`${PITCH_HTTP_ORIGIN}/coach/feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clip_seconds: COACH_CLIP_SECONDS,
+          context: {
+            raga: ragaLabel,
+            exercise: exerciseLabelForCoach,
+            shruti_hz: effectiveSaHz,
+            kattai: shruti ? String(shruti.kattai) : '',
+            session_elapsed_s: sessionElapsed,
+            pitch_summary: [],
+          },
+        }),
+      })
+      if (!res.ok) {
+        let msg = res.statusText
+        try {
+          const j = (await res.json()) as { detail?: unknown }
+          const d = j.detail
+          if (typeof d === 'string') msg = d
+          else if (Array.isArray(d))
+            msg = d.map((x: { msg?: string }) => x.msg ?? JSON.stringify(x)).join('; ')
+        } catch {
+          /* ignore */
+        }
+        throw new Error(msg)
+      }
+      const data = (await res.json()) as { text: string; mock?: boolean }
+      const entry = { text: data.text, at: Date.now(), mock: data.mock }
+      setCoachHistory(h => [...h.slice(-4), entry])
+    } catch (e) {
+      setCoachError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setCoachLoading(false)
+    }
+  }, [effectiveSaHz, saHz, selectedRaga?.label, exerciseLabelForCoach, sessionElapsed])
 
   useEffect(() => {
     exerciseActiveRef.current = exerciseActive
@@ -679,6 +739,11 @@ export default function PitchMonitorScreen({ onHome }: Props) {
           exerciseOptions={exerciseOptions}
           ragaTalaLabel={selectedRagaTalaLabel}
           panelWidthPx={sidebarWidth}
+          coachEnabled={exerciseActive}
+          onAskCoach={askCoach}
+          coachLoading={coachLoading}
+          coachError={coachError}
+          coachHistory={coachHistory}
           onRagaChange={id => {
             if (id === selectedRagaId) return
             stopExercise()

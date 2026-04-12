@@ -174,7 +174,9 @@ export SAPASA_COACH_MLX_MODEL=giangndm/qwen2.5-omni-3b-mlx-4bit
 python main.py
 ```
 
-Confirm the coach is using MLX: `curl -s http://127.0.0.1:8765/coach/health` should show `"inference":"mlx"`. More options: `./scripts/local-omni-llm-server.sh --apple-silicon-help`.
+Confirm the coach is using MLX: `curl -s http://127.0.0.1:8765/coach/health` should show `"inference":"mlx"`. In **Carnatic Training**, start **Sing & Test**, then use **Ask Coach** in the sidebar to send the last ~15 seconds of mic audio to the local coach (with the dev server, the UI talks to `http://127.0.0.1:8765`). More options: `./scripts/local-omni-llm-server.sh --apple-silicon-help`.
+
+**Coach request logging (terminal):** enabled by default (`SAPASA_COACH_LOG=1`). Set `SAPASA_COACH_LOG=0` to disable. Set `SAPASA_COACH_LOG_FULL=1` to log full system and chat-template prompts (can be large).
 
 **Linux + NVIDIA:** use an OpenAI-compatible **vLLM** server instead; see `./scripts/local-omni-llm-server.sh --help` and `--print-sapasa-env`.
 

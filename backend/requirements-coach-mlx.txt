@@ -7,5 +7,9 @@
 #   export SAPASA_COACH_MLX_MODEL=giangndm/qwen2.5-omni-3b-mlx-4bit
 #
 # Upstream: https://github.com/giangndm/mlx-lm-omni
+#
+# If you see ImportError for get_model_path from mlx_lm.utils, upgrade pip/mlx-lm;
+# SaPaSa patches get_model_path, mlx.nn.quantize (legacy ExtendedEmbedding.to_quantized),
+# and TokenizerWithAudio.get_vocab delegation in coach_mlx.py for current mlx / mlx-lm releases.
 
 git+https://github.com/giangndm/mlx-lm-omni.git

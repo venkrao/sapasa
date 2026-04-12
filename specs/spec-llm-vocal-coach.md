@@ -109,7 +109,7 @@ Do not repeat the pitch data back verbatim — interpret it.
 | Phase | Scope |
 |---|---|
 | **1 — Plumbing** | Audio ring buffer in backend, `/coach/feedback` endpoint, LLM client module talking to local Qwen2.5-Omni — **initial slice implemented** (`backend/coach_ring.py`, `coach_llm.py`, `coach_api.py`; `GET /coach/health`; mock without `SAPASA_COACH_LLM_BASE_URL`). |
-| **2 — Basic UI** | "Ask Coach" button + text response card in Carnatic Training sidebar |
+| **2 — Basic UI** | "Ask Coach" button + text response card in Carnatic Training sidebar — **implemented** (`ExercisePanel` coach block; `PitchMonitorScreen` → `POST /coach/feedback`; session history ×5; pitch context empty until phase 3). |
 | **3 — Context enrichment** | Pass pitch summary + exercise context into the prompt; refine system prompt |
 | **4 — Standalone module** | Home screen AI Coach card with free-form Q&A and direct mic input |
 | **5 — TTS playback** | Stream spoken response back to frontend (optional, lower priority) |
