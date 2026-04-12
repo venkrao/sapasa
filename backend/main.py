@@ -47,7 +47,7 @@ SAMPLE_RATE = 44100
 BLOCK_SIZE  = 512   # hop size: new samples per audio callback (~11 ms)
 WINDOW_SIZE = 2048  # aubio analysis window (~46 ms)
 
-MIN_FREQ = 80.0    # ~E2 — covers most vocal ranges
+MIN_FREQ = 55.0    # ~A1 — low male / chest; keep in sync with PitchGraph GRID_MIN_HZ
 MAX_FREQ = 1200.0  # ~D6
 
 # Silence gate: aubio returns freq=0 for frames below this dBFS level.

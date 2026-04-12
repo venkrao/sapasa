@@ -3,7 +3,8 @@ import { buildSwaraBands, nearestSwaraCents, type SwaraBand } from './swaras'
 
 // ── grid & viewport constants ─────────────────────────────────────────────────
 
-const GRID_MIN_HZ = 82.41    // E2 — below lowest practical vocal Sa
+/** Lower bound of pitch grid + viewport (log scale). Match backend `MIN_FREQ` in main.py. */
+const GRID_MIN_HZ = 55.0 // ~A1 — allows D2 / low mandra when shruti is low
 const GRID_MAX_HZ = 2093.00  // C7 — above highest soprano note
 
 const OCTAVE_SPAN = 3        // octaves visible at once
