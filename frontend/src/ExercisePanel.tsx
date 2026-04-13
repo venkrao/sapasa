@@ -429,7 +429,7 @@ export default function ExercisePanel({
                 className="exercise-tone-select"
                 value={tonePreset}
                 onChange={e => setTonePreset(e.target.value as TonePreset)}
-                title="Timbre for the reference tone — piano vs sine changes how the target pitch sounds when you preview it."
+                title="Timbre for the reference tone. Piano uses Salamander samples at exact JI Hz; sine is a pure tone."
               >
                 <option value="piano">Piano</option>
                 <option value="sine">Sine</option>

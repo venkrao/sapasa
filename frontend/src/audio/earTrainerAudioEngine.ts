@@ -8,6 +8,15 @@ type ActiveHandle = {
   timeoutId: number
 }
 
+/**
+ * Same velocity→layer mapping as @tonejs/piano `PianoStrings.triggerAttack`
+ * (see node_modules/@tonejs/piano/src/piano/Strings.ts).
+ */
+function pianoStringIndex(velocity: number, layerCount: number): number {
+  const scaledVel = ((velocity - 0) / (1 - 0)) * (layerCount - 0.51 - (-0.5)) + (-0.5)
+  return Math.max(Math.round(scaledVel), 0)
+}
+
 export class EarTrainerAudioEngine {
   private active: ActiveHandle | null = null
   private piano: Piano | null = null
@@ -41,7 +50,7 @@ export class EarTrainerAudioEngine {
 
     switch (timbre) {
       case 'piano':
-        await this.playPiano(frequencyHz, dur)
+        await this.playSalamanderJiPiano(frequencyHz, dur)
         return
       case 'sine':
       default:
@@ -74,6 +83,41 @@ export class EarTrainerAudioEngine {
     )
   }
 
+  /**
+   * Salamander samples via @tonejs/piano, but pitch targets are exact JI Hz.
+   * `Piano.keyDown` rounds to MIDI note names; Tone's underlying `Sampler` instead
+   * repitches from float MIDI (`ftomf`) — we pass `"${hz}hz"` so playbackRate lands on JI.
+   * (The `Piano` class does not expose `detune`; we use the internal string `Sampler`.)
+   */
+  private async playSalamanderJiPiano(frequencyHz: number, durationSec: number) {
+    try {
+      const piano = await this.ensurePiano()
+      const strings = (piano as unknown as { _strings: { _strings: Array<{ output: Tone.Sampler }> } })
+        ._strings
+      const layers = strings._strings
+      const velocity = 0.85
+      const idx = pianoStringIndex(velocity, layers.length)
+      const sampler = layers[idx].output
+      const pitch = `${frequencyHz}hz` as Tone.Unit.Frequency
+      sampler.triggerAttackRelease(pitch, durationSec, Tone.now(), velocity)
+      this.registerActive(() => {}, durationSec + 0.45)
+    } catch {
+      this.playBrightJiTone(frequencyHz, durationSec)
+    }
+  }
+
+  private async ensurePiano(): Promise<Piano> {
+    if (!this.piano) {
+      this.piano = new Piano({ velocities: 4, pedal: false, release: true }).toDestination()
+      this.pianoLoadPromise = this.piano.load()
+    }
+    if (this.pianoLoadPromise) {
+      await this.pianoLoadPromise
+      this.pianoLoadPromise = null
+    }
+    return this.piano
+  }
+
   private registerActive(dispose: () => void, releaseAfterSec: number) {
     const timeoutId = window.setTimeout(() => {
       dispose()
@@ -99,42 +143,8 @@ export class EarTrainerAudioEngine {
     this.registerActive(() => synth.dispose(), durationSec + 0.4)
   }
 
-  private async playPiano(frequencyHz: number, durationSec: number) {
-    try {
-      const piano = await this.ensurePiano()
-      const midi = this.frequencyToMidi(frequencyHz)
-      piano.keyDown({ midi, velocity: 0.9 })
-
-      this.registerActive(() => {
-        piano.keyUp({ midi })
-      }, durationSec + 0.15)
-      return
-    } catch {
-      // Fallback keeps behavior intact if the external sampler fails at runtime.
-      this.playPianoFallback(frequencyHz, durationSec)
-    }
-  }
-
-  private async ensurePiano(): Promise<Piano> {
-    if (!this.piano) {
-      this.piano = new Piano({ velocities: 4, pedal: false, release: true }).toDestination()
-      this.pianoLoadPromise = this.piano.load()
-    }
-
-    if (this.pianoLoadPromise) {
-      await this.pianoLoadPromise
-      this.pianoLoadPromise = null
-    }
-
-    return this.piano
-  }
-
-  private frequencyToMidi(frequencyHz: number): number {
-    const raw = 69 + 12 * Math.log2(frequencyHz / 440)
-    return Math.max(21, Math.min(108, Math.round(raw)))
-  }
-
-  private playPianoFallback(frequencyHz: number, durationSec: number) {
+  /** Triangle + octave layer at exact JI Hz — fallback if Salamander fails to load. */
+  private playBrightJiTone(frequencyHz: number, durationSec: number) {
     const synth = new Tone.PolySynth(Tone.Synth, {
       oscillator: { type: 'triangle' },
       envelope: { attack: 0.008, decay: 0.25, sustain: 0, release: 0.25 },
@@ -145,7 +155,6 @@ export class EarTrainerAudioEngine {
     synth.connect(lowpass)
     lowpass.connect(gain)
 
-    // Add a light octave layer to mimic brighter piano hammer harmonics.
     const notes = [frequencyHz, frequencyHz * 2]
     synth.triggerAttackRelease(notes, durationSec)
 
@@ -158,6 +167,4 @@ export class EarTrainerAudioEngine {
       durationSec + 0.35,
     )
   }
-
 }
-

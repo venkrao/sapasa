@@ -261,6 +261,7 @@ export default function EarTrainerPanel() {
               className="ear-select"
               value={tonePreset}
               onChange={e => setTonePreset(e.target.value as TonePreset)}
+              title="Piano: Salamander samples tuned to exact JI Hz. Sine: pure tone."
             >
               <option value="piano">Piano</option>
               <option value="sine">Sine (pure)</option>
