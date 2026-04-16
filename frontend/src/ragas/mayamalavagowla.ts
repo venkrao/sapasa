@@ -1,5 +1,8 @@
 import type { RagaDefinition, SequenceStep } from '../exerciseModel'
 import { SARALI_VARISAI_1 } from '../exercises/saraliVarisai1'
+import { SARALI_VARISAI_2 } from '../exercises/saraliVarisai2'
+import { SARALI_VARISAI_3 } from '../exercises/saraliVarisai3'
+import { SARALI_VARISAI_4 } from '../exercises/saraliVarisai4'
 import { JANTA_VARISAI_1 } from '../exercises/jantaVarisai1'
 import { DAATU_VARISAI_1 } from '../exercises/datuVarisai1'
 import { MELSTHAYI_1 } from '../exercises/melsthayi1'
@@ -13,6 +16,9 @@ export const MAYAMALAVAGOWLA: RagaDefinition = {
   talaLabel: 'Adi-tala',
   exercises: [
     SARALI_VARISAI_1,
+    SARALI_VARISAI_2,
+    SARALI_VARISAI_3,
+    SARALI_VARISAI_4,
     JANTA_VARISAI_1,
     DAATU_VARISAI_1,
     MELSTHAYI_1,
