@@ -54,8 +54,9 @@ export default function CustomMelodyEditor({
       <div className="custom-melody-editor-head">
         <span className="custom-melody-editor-title">Your notes</span>
         <span className="custom-melody-editor-hint">
-          Tap swaras to add them in order. Pick the octave first, then use Bar for a beat line
-          (like Sarali). The sequence below matches what you hear on Start.
+          Tap swaras to add them in order, or paste text using the same symbols as the notation row below
+          (Ṡ, Ṙ₂, N₂, P, …) or engine names (Sa, R1, R2′, …). Bar inserts a beat. Duplicate glyphs like Ṗ default to tāra;
+          use ASCII <code className="custom-melody-code">Pa,</code> for mandra Pa if needed.
         </span>
       </div>
 
@@ -139,7 +140,7 @@ export default function CustomMelodyEditor({
           autoCorrect="off"
           aria-invalid={!!parseError}
           aria-describedby={parseError ? 'custom-melody-parse-error' : undefined}
-          title="Raw sequence: swaras separated by spaces; | for a bar after the previous note; ′ tara, , mandra."
+          title="Tiles or ASCII: Sa, R1, N1 (same as D2), N2 (same as D3), G1/G2 (same as R2/R3), … — spaces; | bar; ′ tara , mandra"
         />
       </details>
 

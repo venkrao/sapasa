@@ -1,8 +1,10 @@
 import { swaraHz } from './swaras'
 
 export type SequenceStep = {
-  swara: string  // swara key, e.g. 'Sa', 'R1', 'Pa'
+  swara: string  // JI key used for Hz / pitch match, e.g. 'D2' (same pitch as 'N1')
   octave: number // octave relative to Sa (0 = madhya, 1 = tara, -1 = mandra)
+  /** If set (e.g. custom melody), tiles show this exact token; audio still uses `swara`. */
+  displayAs?: string
 }
 
 export type ExerciseGroup = {

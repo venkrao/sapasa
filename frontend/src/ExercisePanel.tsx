@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './ExercisePanel.css'
 import CustomMelodyEditor from './CustomMelodyEditor'
 import { EarTrainerAudioEngine, type TonePreset } from './audio/earTrainerAudioEngine'
+import { notationOfDisplay } from './carnaticNotation'
 import { deriveFlatSequence, sequenceStepHz, type ExercisePhrase, type SequenceStep } from './exerciseModel'
 
 export type Option = { id: string; label: string }
@@ -58,51 +59,6 @@ export type ExercisePanelProps = {
 
 /** Playback length passed to the synth — keep in sync with `playExpectedNote`. */
 const REFERENCE_NOTE_DURATION_SEC = 2.5
-
-const SWARA_TO_NOTATION: Record<string, string> = {
-  Sa: 'S',
-  R1: 'R₁',
-  R2: 'R₂',
-  R3: 'R₃',
-  G3: 'G₃',
-  M1: 'M₁',
-  M2: 'M₂',
-  Pa: 'P',
-  D1: 'D₁',
-  D2: 'D₂',
-  D3: 'N₂',  // D3 and N2 share the same pitch; displayed as N₂ in context
-  N3: 'N₃',
-}
-
-const TARA_NOTATION: Record<string, string> = {
-  R1: 'Ṙ₁',
-  R2: 'Ṙ₂',
-  G3: 'Ġ₃',
-  M1: 'Ṁ₁',
-  Pa: 'Ṗ',
-  D1: 'Ḋ₁',
-  D3: 'Ṅ₂',
-  N3: 'Ṅ₃',
-}
-
-const MANDRA_NOTATION: Record<string, string> = {
-  Sa: 'Ṣ',
-  R1: 'Ṛ₁',
-  R2: 'Ṛ₂',
-  G3: 'Ġ₃',
-  M1: 'Ṃ₁',
-  Pa: 'Ṗ',
-  D1: 'Ḍ₁',
-  D3: 'Ṇ₂',
-  N3: 'Ṇ₃',
-}
-
-function notationOf(step: SequenceStep): string {
-  if (step.swara === 'Sa' && step.octave >= 1) return 'Ṡ'
-  if (step.octave >= 1)  return TARA_NOTATION[step.swara]   ?? step.swara
-  if (step.octave <= -1) return MANDRA_NOTATION[step.swara] ?? step.swara
-  return SWARA_TO_NOTATION[step.swara] ?? step.swara
-}
 
 export default function ExercisePanel({
   selectedRagaId,
@@ -427,7 +383,7 @@ export default function ExercisePanel({
           Expected:{' '}
           {exerciseActive ? (
             <span className="exercise-next">
-              {expectedStep ? notationOf(expectedStep) : '—'}
+              {expectedStep ? notationOfDisplay(expectedStep) : '—'}
             </span>
           ) : (
             <span className="exercise-next exercise-next-idle">—</span>
@@ -506,7 +462,7 @@ export default function ExercisePanel({
                         (isAutoPlaying ? 'autoplay ' : '')
                       return (
                         <span key={gIdx + ':' + sIdx} className={tileClass.trim()}>
-                          {notationOf(step)}
+                          {notationOfDisplay(step)}
                         </span>
                       )
                     })

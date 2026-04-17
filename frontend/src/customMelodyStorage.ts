@@ -27,7 +27,15 @@ export function normalizeCustomMelodyGroups(groups: ExerciseGroup[]): ExerciseGr
     for (let i = 0; i < g.steps.length; i++) {
       const st = g.steps[i]
       out.push({
-        steps: [{ swara: st.swara, octave: clampOctave(st.octave) }],
+        steps: [
+          {
+            swara: st.swara,
+            octave: clampOctave(st.octave),
+            ...(typeof (st as { displayAs?: string }).displayAs === 'string'
+              ? { displayAs: (st as { displayAs: string }).displayAs }
+              : {}),
+          },
+        ],
         beatBoundary: i === g.steps.length - 1 ? g.beatBoundary : false,
         lineBreak: i === g.steps.length - 1 ? g.lineBreak : undefined,
       })

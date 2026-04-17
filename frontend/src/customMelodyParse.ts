@@ -1,5 +1,32 @@
+import {
+  MANDRA_NOTATION,
+  SWARA_TO_NOTATION,
+  TARA_NOTATION,
+  TARA_SA_SYMBOL,
+} from './carnaticNotation'
 import type { ExerciseGroup, SequenceStep } from './exerciseModel'
 import { JI_RATIOS } from './swaras'
+
+/** Symbols shown in the exercise tiles (notationOf) → internal step. First registration wins for duplicate glyphs (e.g. Ṗ, Ġ₃). */
+function buildDisplaySymbolToStep(): Map<string, SequenceStep> {
+  const m = new Map<string, SequenceStep>()
+  const add = (sym: string, step: SequenceStep) => {
+    if (!m.has(sym)) m.set(sym, step)
+  }
+  for (const [swara, sym] of Object.entries(SWARA_TO_NOTATION)) {
+    add(sym, { swara, octave: 0 })
+  }
+  for (const [swara, sym] of Object.entries(TARA_NOTATION)) {
+    add(sym, { swara, octave: 1 })
+  }
+  for (const [swara, sym] of Object.entries(MANDRA_NOTATION)) {
+    add(sym, { swara, octave: -1 })
+  }
+  add(TARA_SA_SYMBOL, { swara: 'Sa', octave: 1 })
+  return m
+}
+
+const DISPLAY_SYMBOL_TO_STEP = buildDisplaySymbolToStep()
 
 /** JI keys except Sa′ — tara Sa is written Sa′ in text and stored as Sa + octave. */
 const SWARA_IDS = Object.keys(JI_RATIOS).filter(k => k !== "Sa'")
@@ -23,6 +50,17 @@ export const MELODY_SWARA_BUTTON_ORDER = [
 const SWARA_BY_LOWER = new Map<string, string>(
   SWARA_IDS.map(id => [id.toLowerCase(), id]),
 )
+
+/**
+ * Same pitch class, alternate names (common in books). Canonical storage uses Ri/Dha keys — see `JI_RATIOS` / `SWARA_LABELS`.
+ * e.g. N1 and D2 are the same frequency; typing N1 maps to D2.
+ */
+const SWARA_NAME_ALIASES: Record<string, string> = {
+  g1: 'R2',
+  g2: 'R3',
+  n1: 'D2',
+  n2: 'D3',
+}
 
 function clampOctave(o: number): number {
   if (!Number.isFinite(o)) return 0
@@ -55,18 +93,24 @@ function parseNoteToken(word: string, wordIndex: number): { ok: true; step: Sequ
   const w = word.trim()
   if (!w) return { ok: false, error: 'Empty note token' }
 
+  // Same glyphs as the notation row (Ṡ, Ṙ₂, N₂, P, …) — paste from the UI or type ASCII below.
+  const display = DISPLAY_SYMBOL_TO_STEP.get(w)
+  if (display) return { ok: true, step: { ...display, displayAs: w } }
+
   const { base, octave } = parseOctaveSuffix(w)
   if (!base) return { ok: false, error: `Invalid note “${word}” (token ${wordIndex + 1})` }
 
-  const canon = SWARA_BY_LOWER.get(base.toLowerCase())
+  const lower = base.toLowerCase()
+  const canon =
+    SWARA_BY_LOWER.get(lower) ?? SWARA_NAME_ALIASES[lower] ?? null
   if (!canon) {
     return {
       ok: false,
-      error: `Unknown swara “${base}”. Use Sa, R1, G3, M1, Pa, D1, N3, … (see hint below).`,
+      error: `Unknown swara “${base}”. Use tile symbols, or names like Sa, R1, D2 (same as N1), N3, …`,
     }
   }
 
-  return { ok: true, step: { swara: canon, octave } }
+  return { ok: true, step: { swara: canon, octave, displayAs: w } }
 }
 
 export type ParseCustomMelodyResult =
@@ -75,7 +119,7 @@ export type ParseCustomMelodyResult =
 
 /**
  * Whitespace-separated swaras; `|` draws a bar after the previous note (same as beatBoundary in exercises).
- * Octave: append ′ for tara, comma for mandra (e.g. Sa′, Sa,).
+ * Accepts tile notation (Ṡ, Ṙ₂, N₂, P, …) or ASCII engine names with ′/, for octave (Sa′, R2′, Pa,).
  */
 function tokenizeMelody(input: string): Array<'|' | string> {
   const out: Array<'|' | string> = []
@@ -111,8 +155,9 @@ export function parseCustomMelodyText(input: string): ParseCustomMelodyResult {
   return { ok: true, groups }
 }
 
-/** Encode one step the same way as `groupsToText` (for button builder). */
+/** Encode one step for storage / button builder — preserves user spelling when `displayAs` is set. */
 export function sequenceStepToMelodyToken(step: SequenceStep): string {
+  if (step.displayAs != null && step.displayAs.length > 0) return step.displayAs
   let o = step.octave
   let suf = ''
   while (o > 0) {
@@ -156,17 +201,7 @@ export function groupsToText(groups: ExerciseGroup[]): string {
   for (const g of groups) {
     const st = g.steps[0]
     if (!st) continue
-    let o = st.octave
-    let suf = ''
-    while (o > 0) {
-      suf += "'"
-      o -= 1
-    }
-    while (o < 0) {
-      suf += ','
-      o += 1
-    }
-    pieces.push(st.swara + suf)
+    pieces.push(sequenceStepToMelodyToken(st))
     if (g.beatBoundary) pieces.push('|')
   }
   return pieces.join(' ')
