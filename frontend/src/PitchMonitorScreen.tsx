@@ -6,9 +6,12 @@ import { SA_HZ, SHRUTI_LIST, swaraHz } from './swaras'
 import ExercisePanel from './ExercisePanel'
 import TanpuraStrip from './TanpuraStrip'
 import CameraObservationLab from './CameraObservationLab'
+import { parseCustomMelodyText } from './customMelodyParse'
+import { CUSTOM_MELODY_EXERCISE_ID, loadCustomMelodyText, saveCustomMelodyText } from './customMelodyStorage'
+import { CUSTOM_MELODY_RAGA_ID } from './ragas/customMelodyRaga'
 import { RAGAS, getExercise } from './exerciseCatalog'
 import { deriveFlatSequence } from './exerciseModel'
-import type { RagaDefinition, SequenceStep } from './exerciseModel'
+import type { ExercisePhrase, RagaDefinition, SequenceStep } from './exerciseModel'
 
 const WS_URL = 'ws://localhost:8765/ws'
 /** Same host/port as `python main.py` — REST coach API. */
@@ -152,47 +155,133 @@ export default function PitchMonitorScreen({ onHome }: Props) {
     selectedRagaId ? RAGAS.find(r => r.id === selectedRagaId) : undefined
   const selectedRagaTalaLabel = selectedRaga?.talaLabel ?? ''
 
-  const exerciseOptions = [
-    { id: '', label: 'Select exercise…' },
-    ...(selectedRagaId ? [{ id: AROHANAM_AVAROHANAM_EXERCISE_ID, label: 'Arohanam & Avarohanam' }] : []),
-    ...((selectedRaga?.exercises ?? []).map(e => ({ id: e.id, label: e.label }))),
-  ]
+  const isCustomMelodyRaga = selectedRagaId === CUSTOM_MELODY_RAGA_ID
+
+  const exerciseOptions = useMemo(() => {
+    const empty = { id: '', label: 'Select exercise…' }
+    if (!selectedRagaId) return [empty]
+    if (isCustomMelodyRaga) {
+      return [empty, { id: CUSTOM_MELODY_EXERCISE_ID, label: 'Custom melody' }]
+    }
+    return [
+      empty,
+      { id: AROHANAM_AVAROHANAM_EXERCISE_ID, label: 'Arohanam & Avarohanam' },
+      ...((selectedRaga?.exercises ?? []).map(e => ({ id: e.id, label: e.label }))),
+    ]
+  }, [selectedRagaId, isCustomMelodyRaga, selectedRaga])
 
   const [selectedExerciseId, setSelectedExerciseId] = useState('')
 
+  useEffect(() => {
+    if (isCustomMelodyRaga) setSelectedExerciseId(CUSTOM_MELODY_EXERCISE_ID)
+  }, [isCustomMelodyRaga])
+
   const isAroAvaroExercise = selectedExerciseId === AROHANAM_AVAROHANAM_EXERCISE_ID
 
+  const [customMelodyText, setCustomMelodyText] = useState(() => loadCustomMelodyText())
+
+  useEffect(() => {
+    saveCustomMelodyText(customMelodyText)
+  }, [customMelodyText])
+
+  const customMelodyParsed = useMemo(() => parseCustomMelodyText(customMelodyText), [customMelodyText])
+
   const selectedExercise =
-    !isAroAvaroExercise && selectedRagaId && selectedExerciseId
+    !isAroAvaroExercise &&
+    !isCustomMelodyRaga &&
+    selectedRagaId &&
+    selectedExerciseId
       ? getExercise(selectedRagaId, selectedExerciseId)
       : undefined
-
-  // Spec-driven "Arohanam & Avarohanam" generated from the selected raga.
-  const aroAvaroPhrases = selectedRaga
-    ? [
-        {
-          label: 'ascending',
-          groups: selectedRaga.arohanam.map(step => ({ steps: [step] })),
-        },
-        {
-          label: 'descending',
-          groups: selectedRaga.avarohanam.map(step => ({ steps: [step] })),
-        },
-      ]
-    : []
-
-  const aroAvaroFlatSequence = deriveFlatSequence(aroAvaroPhrases)
 
   // Convert a SequenceStep to the swara band key used by PitchGraph.
   function stepToGraphKey(step: SequenceStep): string {
     return step.swara === 'Sa' && step.octave >= 1 ? "Sa'" : step.swara
   }
 
-  const aroAvaroAllowedSwaras = Array.from(new Set(aroAvaroFlatSequence.map(stepToGraphKey)))
+  // Spec-driven "Arohanam & Avarohanam" generated from the selected raga.
+  const aroAvaroPhrases: ExercisePhrase[] = useMemo(
+    () =>
+      selectedRaga
+        ? [
+            {
+              label: 'ascending',
+              groups: selectedRaga.arohanam.map(step => ({ steps: [step] })),
+            },
+            {
+              label: 'descending',
+              groups: selectedRaga.avarohanam.map(step => ({ steps: [step] })),
+            },
+          ]
+        : [],
+    [selectedRaga],
+  )
 
-  const flatSequence = isAroAvaroExercise ? aroAvaroFlatSequence : selectedExercise?.flatSequence ?? []
-  const phrases = isAroAvaroExercise ? aroAvaroPhrases : selectedExercise?.phrases ?? []
-  const allowedSwaras = isAroAvaroExercise ? aroAvaroAllowedSwaras : selectedExercise?.allowedSwaras ?? null
+  const aroAvaroFlatSequence = useMemo(
+    () => deriveFlatSequence(aroAvaroPhrases),
+    [aroAvaroPhrases],
+  )
+
+  const aroAvaroAllowedSwaras = useMemo(
+    () => Array.from(new Set(aroAvaroFlatSequence.map(stepToGraphKey))),
+    [aroAvaroFlatSequence],
+  )
+
+  const customMelodyPhrases: ExercisePhrase[] = useMemo((): ExercisePhrase[] => {
+    if (!customMelodyParsed.ok) return [{ label: 'custom', groups: [] }]
+    return [{ label: 'custom', groups: customMelodyParsed.groups }]
+  }, [customMelodyParsed])
+
+  const customMelodyFlatSequence = useMemo(() => {
+    if (!customMelodyParsed.ok) return []
+    return deriveFlatSequence([{ label: 'custom', groups: customMelodyParsed.groups }])
+  }, [customMelodyParsed])
+
+  const customMelodyAllowedSwaras = useMemo(
+    () => Array.from(new Set(customMelodyFlatSequence.map(stepToGraphKey))),
+    [customMelodyFlatSequence],
+  )
+
+  const customMelodyParseError =
+    isCustomMelodyRaga && !customMelodyParsed.ok ? customMelodyParsed.error : null
+
+  const flatSequence = useMemo(
+    () =>
+      isAroAvaroExercise
+        ? aroAvaroFlatSequence
+        : isCustomMelodyRaga
+          ? customMelodyFlatSequence
+          : selectedExercise?.flatSequence ?? [],
+    [
+      isAroAvaroExercise,
+      isCustomMelodyRaga,
+      aroAvaroFlatSequence,
+      customMelodyFlatSequence,
+      selectedExercise?.flatSequence,
+    ],
+  )
+
+  const phrases: ExercisePhrase[] = useMemo(
+    () =>
+      isAroAvaroExercise
+        ? aroAvaroPhrases
+        : isCustomMelodyRaga
+          ? customMelodyPhrases
+          : selectedExercise?.phrases ?? [],
+    [
+      isAroAvaroExercise,
+      isCustomMelodyRaga,
+      aroAvaroPhrases,
+      customMelodyPhrases,
+      selectedExercise?.phrases,
+    ],
+  )
+
+  const allowedSwaras = isAroAvaroExercise
+    ? aroAvaroAllowedSwaras
+    : isCustomMelodyRaga
+      ? customMelodyAllowedSwaras
+      : selectedExercise?.allowedSwaras ?? null
 
   const [exerciseActive, setExerciseActive] = useState(false)
   const [expectedIndex, setExpectedIndex] = useState(0)
@@ -367,13 +456,23 @@ export default function PitchMonitorScreen({ onHome }: Props) {
   const expectedSwara = expectedStep ? stepToGraphKey(expectedStep) : null
   const totalSteps = flatSequence.length
 
-  const canStart = !!selectedRagaId && !!selectedExerciseId && totalSteps > 0
+  const canStart =
+    !!selectedRagaId &&
+    totalSteps > 0 &&
+    (isCustomMelodyRaga ? customMelodyParsed.ok : !!selectedExerciseId)
 
   const exerciseLabelForCoach = useMemo(() => {
     if (!selectedExerciseId || !selectedRagaId) return ''
     if (isAroAvaroExercise) return 'Arohanam & Avarohanam'
+    if (isCustomMelodyRaga) return 'Custom melody'
     return selectedExercise?.label ?? selectedExerciseId
-  }, [selectedExerciseId, selectedRagaId, isAroAvaroExercise, selectedExercise?.label])
+  }, [
+    selectedExerciseId,
+    selectedRagaId,
+    isAroAvaroExercise,
+    isCustomMelodyRaga,
+    selectedExercise?.label,
+  ])
 
   const askCoach = useCallback(async () => {
     setCoachLoading(true)
@@ -427,7 +526,7 @@ export default function PitchMonitorScreen({ onHome }: Props) {
   }, [expectedIndex])
   useEffect(() => {
     flatSequenceRef.current = flatSequence
-  }, [selectedRagaId, selectedExerciseId])
+  }, [flatSequence])
   useEffect(() => {
     loopExerciseRef.current = loopExercise
   }, [loopExercise])
@@ -744,6 +843,11 @@ export default function PitchMonitorScreen({ onHome }: Props) {
           coachLoading={coachLoading}
           coachError={coachError}
           coachHistory={coachHistory}
+          showCustomMelodyEditor={isCustomMelodyRaga}
+          hideExerciseSelect={isCustomMelodyRaga}
+          customMelodyText={customMelodyText}
+          onCustomMelodyTextChange={setCustomMelodyText}
+          customMelodyParseError={customMelodyParseError}
           onRagaChange={id => {
             if (id === selectedRagaId) return
             stopExercise()

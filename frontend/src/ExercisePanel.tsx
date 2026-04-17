@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './ExercisePanel.css'
+import CustomMelodyEditor from './CustomMelodyEditor'
 import { EarTrainerAudioEngine, type TonePreset } from './audio/earTrainerAudioEngine'
 import { deriveFlatSequence, sequenceStepHz, type ExercisePhrase, type SequenceStep } from './exerciseModel'
 
@@ -38,6 +39,14 @@ export type ExercisePanelProps = {
 
   // Optional fixed width override (used for draggable divider resizing).
   panelWidthPx?: number
+
+  /** Text format: space-separated swaras; | = bar after previous note (see CustomMelodyEditor hint). */
+  showCustomMelodyEditor?: boolean
+  customMelodyText?: string
+  onCustomMelodyTextChange?: (text: string) => void
+  customMelodyParseError?: string | null
+  /** When true, only one exercise applies (Custom Melody raga) — hide the Exercise dropdown. */
+  hideExerciseSelect?: boolean
 
   /** AI vocal coach (Carnatic Training sidebar) — Phase 2 */
   coachEnabled?: boolean
@@ -121,6 +130,11 @@ export default function ExercisePanel({
   coachLoading = false,
   coachError = null,
   coachHistory = [],
+  showCustomMelodyEditor = false,
+  customMelodyText = '',
+  onCustomMelodyTextChange,
+  customMelodyParseError = null,
+  hideExerciseSelect = false,
 }: ExercisePanelProps) {
   const audioRef = useRef<EarTrainerAudioEngine | null>(null)
   const playsThisStepRef = useRef(0)
@@ -179,11 +193,10 @@ export default function ExercisePanel({
     }
   }, [flatSequenceForPlayback, saHz, tempo, tonePreset])
 
-  // Cancel auto-play when the exercise/raga selection changes.
+  // Cancel auto-play when the exercise/raga selection or sequence content changes.
   useEffect(() => {
     stopAutoPlay()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedRagaId, selectedExerciseId])
+  }, [selectedRagaId, selectedExerciseId, phrases, stopAutoPlay])
 
   useEffect(() => {
     return () => {
@@ -270,22 +283,33 @@ export default function ExercisePanel({
               </select>
             </div>
 
-            <div className="exercise-select-block">
-              <div className="exercise-select-label">Exercise</div>
-              <select
-                className="exercise-select"
-                value={selectedExerciseId}
-                onChange={e => onExerciseChange(e.target.value)}
-                title="Choose an exercise — defines the sequence of swaras you will sing or hear in Sing & Test / auto-play."
-              >
-                {exerciseOptions.map(o => (
-                  <option key={o.id} value={o.id}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {!hideExerciseSelect ? (
+              <div className="exercise-select-block">
+                <div className="exercise-select-label">Exercise</div>
+                <select
+                  className="exercise-select"
+                  value={selectedExerciseId}
+                  onChange={e => onExerciseChange(e.target.value)}
+                  title="Choose an exercise — defines the sequence of swaras you will sing or hear in Sing & Test / auto-play."
+                >
+                  {exerciseOptions.map(o => (
+                    <option key={o.id} value={o.id}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
           </div>
+
+          {showCustomMelodyEditor && onCustomMelodyTextChange ? (
+            <CustomMelodyEditor
+              value={customMelodyText}
+              onChange={onCustomMelodyTextChange}
+              parseError={customMelodyParseError}
+              disabled={exerciseActive || autoPlayActive}
+            />
+          ) : null}
 
           {/* ── Tempo + auto-play ── */}
           {!exerciseActive && !autoPlayActive ? (

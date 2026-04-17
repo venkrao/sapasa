@@ -91,6 +91,201 @@
 .exercise-select:hover { border-color: #333; }
 .exercise-select:focus { border-color: #444; }
 
+/* Custom melody (user-built sequence) */
+.custom-melody-editor {
+  width: 100%;
+  margin-top: 4px;
+  padding: 10px 0 4px;
+  border-top: 1px solid #222;
+}
+
+.custom-melody-editor-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.custom-melody-editor-title {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #8b8b8b;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.custom-melody-editor-hint {
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: #6b6b6b;
+}
+
+.custom-melody-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.85em;
+  color: #a3a3a3;
+  background: #151515;
+  padding: 0 4px;
+  border-radius: 4px;
+}
+
+.custom-melody-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: #e5e5e5;
+  background: #0d0d0d;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  padding: 10px 12px;
+  resize: vertical;
+  min-height: 88px;
+  outline: none;
+}
+
+.custom-melody-textarea:focus {
+  border-color: #444;
+}
+
+.custom-melody-textarea:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.custom-melody-textarea-error {
+  border-color: #b45309;
+}
+
+.custom-melody-parse-error {
+  margin: 8px 0 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: #fb923c;
+}
+
+.custom-melody-subhead {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #6b6b6b;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  width: 100%;
+}
+
+.custom-melody-octave-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.custom-melody-octave-btn {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #b5b5b5;
+  background: #141414;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.custom-melody-octave-btn:hover:not(:disabled) {
+  border-color: #555;
+}
+
+.custom-melody-octave-btn.active {
+  border-color: #86efac;
+  color: #e5e5e5;
+  background: #0f1f14;
+}
+
+.custom-melody-octave-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.custom-melody-swara-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.custom-melody-swara-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.25rem;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid #333;
+  background: #101010;
+  color: #ddd;
+  cursor: pointer;
+  font: inherit;
+}
+
+.custom-melody-swara-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+  border-color: #555;
+}
+
+.custom-melody-swara-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.custom-melody-swara-id {
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.custom-melody-swara-sub {
+  font-size: 0.58rem;
+  color: #888;
+  line-height: 1.2;
+  text-align: center;
+  max-width: 4.5rem;
+}
+
+.custom-melody-tool-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.custom-melody-tool-btn {
+  font-size: 0.75rem;
+  padding: 5px 10px;
+}
+
+.custom-melody-advanced {
+  margin-top: 6px;
+}
+
+.custom-melody-advanced-summary {
+  font-size: 0.7rem;
+  color: #8b8b8b;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+}
+
+.custom-melody-advanced-summary::-webkit-details-marker {
+  display: none;
+}
+
+.custom-melody-advanced .custom-melody-textarea {
+  margin-top: 8px;
+}
+
 .exercise-btn {
   font-size: 0.8rem;
   font-weight: 700;
