@@ -245,6 +245,11 @@
   color: #f0fdf4;
 }
 
+.ear-playinfo-western {
+  font-variant-numeric: tabular-nums;
+  color: #c7d2fe;
+}
+
 .ear-key-main {
   display: block;
   font-size: 1.02rem;
@@ -253,12 +258,11 @@
   line-height: 1.1;
 }
 
-.ear-key-secondary {
-  display: block;
-  margin-top: 4px;
-  font-size: 0.75rem;
-  font-weight: 800;
-  color: #7a7a7a;
+/** Same-frequency alternate name, shown in parentheses after the primary label. */
+.ear-key-bracket {
+  font-weight: 700;
+  color: #8b8b8b;
+  font-size: 0.88em;
 }
 
 .ear-key-badge {

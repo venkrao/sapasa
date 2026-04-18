@@ -21,6 +21,16 @@ const BASE_PITCHES: BasePitch[] = [
   { label: 'C4 (default)', hz: 261.63 },
 ]
 
+const ET_NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const
+
+/** Nearest 12-TET pitch name (A4 = 440 Hz), for labeling JI playback Hz. */
+function hzToNearestEtNoteName(hz: number): string {
+  const midi = Math.round(69 + 12 * Math.log2(hz / 440))
+  const pc = ((midi % 12) + 12) % 12
+  const octave = Math.floor(midi / 12) - 1
+  return `${ET_NOTE_NAMES[pc]}${octave}`
+}
+
 type RatioKey = keyof typeof JI_RATIOS
 
 type SwaraDef = {
@@ -207,12 +217,31 @@ export default function EarTrainerPanel() {
     audioEngineRef.current?.stop()
   }
 
-  // Layout order: Row1 = Sa..Ma1 (8 keys), Row2 = Ma2..Sa' (8 keys).
+  /**
+   * Pedagogical left-to-right: Sa, then Ri1–Ri3, then Ga1–Ga3 (same frequencies as adjacent Ri/Ga pairs),
+   * madhyama–Pa, then Dha/Ni run, tara Sa. Matches how melakarta degrees are often taught.
+   */
   const keyboardOrder = useMemo(() => {
     const byShort = new Map(swaras.map(s => [s.short, s]))
-    const row1 = ['Sa', 'Ri1', 'Ri2', 'Ga1', 'Ri3', 'Ga2', 'Ga3', 'Ma1'].map(k => byShort.get(k)!)
-    const row2 = ["Ma2", 'Pa', 'Dha1', 'Dha2', 'Ni1', 'Ni2', 'Ni3', "Sa'"].map(k => byShort.get(k)!)
-    return [...row1, ...row2]
+    const shorts = [
+      'Sa',
+      'Ri1',
+      'Ri2',
+      'Ri3',
+      'Ga1',
+      'Ga2',
+      'Ga3',
+      'Ma1',
+      'Ma2',
+      'Pa',
+      'Dha1',
+      'Dha2',
+      'Ni1',
+      'Ni2',
+      'Ni3',
+      "Sa'",
+    ]
+    return shorts.map(k => byShort.get(k)!)
   }, [swaras])
 
   const correctSet = useMemo(() => {
@@ -400,15 +429,23 @@ export default function EarTrainerPanel() {
               disabled={disabledInAnswered}
               aria-label={def.fullName}
               aria-pressed={isPlaying}
-              title={def.fullName}
+              title={
+                def.secondaryShort
+                  ? `${def.fullName} — same 12-tone pitch as ${def.secondaryShort}`
+                  : def.fullName
+              }
               style={
                 {
                   '--ear-accent': def.color,
                 } as React.CSSProperties
               }
             >
-              <span className="ear-key-main">{def.short}</span>
-              {def.secondaryShort ? <span className="ear-key-secondary">/{def.secondaryShort}</span> : null}
+              <span className="ear-key-main">
+                {def.short}
+                {def.secondaryShort ? (
+                  <span className="ear-key-bracket"> ({def.secondaryShort})</span>
+                ) : null}
+              </span>
               <span className="ear-key-badge" aria-hidden="true">
                 {isPlaying ? 'Playing' : ''}
               </span>
@@ -420,6 +457,7 @@ export default function EarTrainerPanel() {
       {quizPhase === 'idle' && activeSwara && lastPlayedHz ? (
         <div className="ear-playinfo" role="status" aria-live="polite">
           Playing: <span className="ear-playinfo-swara">{activeSwara}</span> —{' '}
+          <span className="ear-playinfo-western">{hzToNearestEtNoteName(lastPlayedHz)}</span> —{' '}
           <span className="ear-playinfo-hz">{lastPlayedHz.toFixed(2)} Hz</span>
         </div>
       ) : null}
