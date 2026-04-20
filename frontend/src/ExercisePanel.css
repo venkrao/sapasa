@@ -466,7 +466,11 @@
 }
 
 .exercise-tempo-value {
-  min-width: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 72px;
   text-align: center;
   font-size: 0.8rem;
   font-weight: 700;
@@ -476,6 +480,28 @@
   line-height: 28px;
   border-left: 1px solid #222;
   border-right: 1px solid #222;
+}
+
+.exercise-tempo-input {
+  width: 3rem;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  padding: 0 2px;
+  line-height: 28px;
+  outline: none;
+}
+
+.exercise-tempo-input:focus {
+  color: #fbbf24;
+}
+
+.exercise-tempo-input::placeholder {
+  color: #6b7280;
 }
 
 .exercise-tempo-unit {

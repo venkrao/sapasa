@@ -113,6 +113,8 @@ export default function ExercisePanel({
 
   // ── Auto-play state ───────────────────────────────────────────────────
   const [tempo, setTempo] = useState(60)
+  /** Draft BPM while typing; kept in sync with `tempo` when steppers change. */
+  const [tempoInput, setTempoInput] = useState('60')
   const [autoPlayActive, setAutoPlayActive] = useState(false)
   const [autoPlayIndex, setAutoPlayIndex] = useState(-1)
   const autoPlayCancelRef = useRef(false)
@@ -121,7 +123,26 @@ export default function ExercisePanel({
   const loopExerciseRef = useRef(loopExercise)
   useEffect(() => { loopExerciseRef.current = loopExercise }, [loopExercise])
 
+  useEffect(() => {
+    setTempoInput(String(tempo))
+  }, [tempo])
+
   const flatSequenceForPlayback = useMemo(() => deriveFlatSequence(phrases), [phrases])
+
+  function resolveBpmFromField(raw: string, fallback: number): number {
+    const digits = raw.replace(/\D/g, '')
+    if (digits === '') return fallback
+    const v = parseInt(digits, 10)
+    if (!Number.isFinite(v)) return fallback
+    return Math.max(20, Math.min(360, v))
+  }
+
+  const commitTempoInput = useCallback((): number => {
+    const next = resolveBpmFromField(tempoInput, tempo)
+    setTempo(next)
+    setTempoInput(String(next))
+    return next
+  }, [tempoInput, tempo])
 
   const stopAutoPlay = useCallback(() => {
     autoPlayCancelRef.current = true
@@ -138,7 +159,8 @@ export default function ExercisePanel({
     autoPlayCancelRef.current = false
     setAutoPlayActive(true)
 
-    const noteDurationSec = 60 / tempo
+    const bpm = commitTempoInput()
+    const noteDurationSec = 60 / bpm
     const beatMs = Math.ceil(noteDurationSec * 1000)
 
     do {
@@ -160,7 +182,7 @@ export default function ExercisePanel({
       setAutoPlayActive(false)
       setAutoPlayIndex(-1)
     }
-  }, [flatSequenceForPlayback, saHz, tempo, tonePreset])
+  }, [flatSequenceForPlayback, saHz, commitTempoInput, tonePreset])
 
   // Cancel auto-play when the exercise/raga selection or sequence content changes.
   useEffect(() => {
@@ -299,22 +321,43 @@ export default function ExercisePanel({
                   <button
                     className="exercise-tempo-step-btn"
                     type="button"
-                    onClick={() => setTempo(t => Math.max(20, t - 4))}
+                    onClick={e =>
+                      setTempo(t => Math.max(20, t - (e.shiftKey ? 20 : 4)))
+                    }
                     aria-label="Decrease tempo"
-                    title="Slow down auto-play — reduces BPM in steps (minimum 20 BPM)."
+                    title="Slow down auto-play (4 BPM per click, 20 BPM with Shift). Minimum 20 BPM."
                   >−</button>
-                  <span
+                  <div
                     className="exercise-tempo-value"
-                    title="Tempo for auto-play only — beats per minute between successive notes in the exercise sequence."
+                    title="Type a BPM (20–360) or use − / +. Enter or leaving the field applies typed values."
                   >
-                    {tempo} <span className="exercise-tempo-unit">BPM</span>
-                  </span>
+                    <input
+                      className="exercise-tempo-input"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      spellCheck={false}
+                      aria-label="Tempo in beats per minute"
+                      value={tempoInput}
+                      onChange={e => setTempoInput(e.target.value)}
+                      onBlur={commitTempoInput}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          commitTempoInput()
+                          e.currentTarget.blur()
+                        }
+                      }}
+                    />
+                    <span className="exercise-tempo-unit">BPM</span>
+                  </div>
                   <button
                     className="exercise-tempo-step-btn"
                     type="button"
-                    onClick={() => setTempo(t => Math.min(360, t + 4))}
+                    onClick={e =>
+                      setTempo(t => Math.min(360, t + (e.shiftKey ? 20 : 4)))
+                    }
                     aria-label="Increase tempo"
-                    title="Speed up auto-play — increases BPM in steps (maximum 360 BPM)."
+                    title="Speed up auto-play (4 BPM per click, 20 BPM with Shift). Maximum 360 BPM."
                   >+</button>
                 </div>
               </div>
