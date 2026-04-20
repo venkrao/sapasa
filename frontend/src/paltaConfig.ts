@@ -1,3 +1,13 @@
+/** Built-line stats for the Palta editor hint row. */
+export type PaltaPhraseStats = {
+  /** Groups if there were no repeat cap (full root walk + optional descent). */
+  fullGroups: number
+  /** Groups actually kept after applying `wholePhraseMaxGroups`. */
+  usedGroups: number
+  /** Total sung steps in the built line (`usedGroups` × pattern length when groups are uniform). */
+  noteCount: number
+}
+
 /** User-controlled palta parameters (persisted). Offsets are scale-degree deltas from each root. */
 export type PaltaConfig = {
   /** Raga whose arohanam defines the degree ladder (madhya sthayi only). */
@@ -15,10 +25,10 @@ export type PaltaConfig = {
   rootHigh: number
   includeDescending: boolean
   /**
-   * Cap on total notes in the built sequence (asc + optional desc). `0` = no cap (use full root sweep).
-   * The sweep is shortened from the top by dropping whole root-groups so groups stay intact.
+   * Max number of stamped pattern repeats in the built line (one repeat = pattern at one root).
+   * `0` = no cap. Order is ascending passes first, then descending until the cap is reached.
    */
-  wholePhraseMaxSteps: number
+  wholePhraseMaxGroups: number
   /** Current offset pattern; length should match `patternLength`. */
   offsets: number[]
 }
@@ -31,6 +41,6 @@ export const DEFAULT_PALTA_CONFIG: PaltaConfig = {
   rootLow: 0,
   rootHigh: 96,
   includeDescending: true,
-  wholePhraseMaxSteps: 0,
+  wholePhraseMaxGroups: 0,
   offsets: [],
 }

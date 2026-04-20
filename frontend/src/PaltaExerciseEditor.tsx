@@ -1,10 +1,6 @@
-import type { PaltaConfig } from './paltaConfig'
-import {
-  clampPaltaOffsetRange,
-  clampPaltaRootRange,
-  effectivePaltaRootBounds,
-  randomOffsetsArray,
-} from './paltaGenerator'
+import { useEffect, useRef, useState } from 'react'
+import type { PaltaConfig, PaltaPhraseStats } from './paltaConfig'
+import { clampPaltaOffsetRange, clampPaltaRootRange, randomOffsetsArray } from './paltaGenerator'
 
 export type PaltaScaleOption = { id: string; label: string }
 
@@ -14,6 +10,8 @@ type Props = {
   scaleRagaOptions: PaltaScaleOption[]
   /** Madhya-scale degree count (for clamp hints). */
   scaleDegreeCount: number
+  /** Built phrase stats from the parent (full vs capped groups and note count). */
+  phraseStats?: PaltaPhraseStats | null
   disabled?: boolean
 }
 
@@ -31,8 +29,8 @@ const TIP_OFFSET_RANGE =
 const TIP_ROOT_SWEEP =
   'The palta repeats your pattern many times, each time starting one step higher on the scale until it reaches the end. “Start” and “End” are which starting notes to use: 0 is usually Sa, higher numbers move up the scale. Leave both at a large value (like 99) to use the full scale from bottom to top.'
 
-const TIP_MAX_NOTES =
-  'Roughly how many separate notes you want in the full line (up, plus back down if that’s on). 0 means no limit. If you pick a smaller number, the line stops earlier—from the top downward—so you get a shorter practice round.'
+const TIP_MAX_GROUPS =
+  'How many times the whole random pattern is played end-to-end in the exercise line (each time at the next starting note up the scale, then the descent if enabled). Example: pattern length 4 and max 12 repeats means up to 12 stamped patterns (48 single notes), not 12 single notes. Use 0 for no limit.'
 
 const TIP_DESCENDING =
   'After walking up the scale, also walk the same pattern back down to the starting region.'
@@ -40,39 +38,69 @@ const TIP_DESCENDING =
 const TIP_RANDOMIZE =
   'Roll a fresh set of random jumps, using your pattern length and min/max jump settings.'
 
+const TIP_PATTERN_EDIT =
+  'Space-separated whole numbers: scale-step jumps from each root (0 = same degree as the root). Enter or leave the field to apply. The count of numbers sets “Notes per pattern” when you commit.'
+
 export default function PaltaExerciseEditor({
   value,
   onChange,
   scaleRagaOptions,
   scaleDegreeCount,
+  phraseStats = null,
   disabled = false,
 }: Props) {
   const n = scaleDegreeCount
   const { min: offMin, max: offMax } =
     n > 0 ? clampPaltaOffsetRange(value.offsetMin, value.offsetMax, n) : { min: 0, max: 0 }
   const roots = n > 0 ? clampPaltaRootRange(value.rootLow, value.rootHigh, n) : { low: 0, high: 0 }
-  const effective =
-    n > 0
-      ? effectivePaltaRootBounds({
-          scaleLen: n,
-          rootLow: value.rootLow,
-          rootHigh: value.rootHigh,
-          patternLength: value.patternLength,
-          includeDescending: value.includeDescending,
-          wholePhraseMaxSteps: value.wholePhraseMaxSteps,
-        })
-      : { low: 0, high: 0, totalSteps: 0 }
+
+  const offsetsSerialized = value.offsets.join(',')
+  const [patternDraft, setPatternDraft] = useState(() =>
+    value.offsets.length > 0 ? value.offsets.join(' ') : '',
+  )
+  const patternFocusRef = useRef(false)
+
+  useEffect(() => {
+    if (patternFocusRef.current) return
+    setPatternDraft(value.offsets.length > 0 ? value.offsets.join(' ') : '')
+  }, [offsetsSerialized, value.patternLength])
 
   function patch(p: Partial<PaltaConfig>) {
     onChange({ ...value, ...p })
   }
 
+  function commitPatternDraft() {
+    const raw = patternDraft.trim()
+    if (raw === '') {
+      setPatternDraft(value.offsets.length > 0 ? value.offsets.join(' ') : '')
+      return
+    }
+    const tokens = raw.split(/\s+/).filter(Boolean)
+    const nums: number[] = []
+    for (const t of tokens) {
+      const v = Number(t)
+      if (!Number.isFinite(v)) {
+        setPatternDraft(value.offsets.length > 0 ? value.offsets.join(' ') : '')
+        return
+      }
+      nums.push(Math.round(v))
+    }
+    if (nums.length === 0) {
+      setPatternDraft(value.offsets.length > 0 ? value.offsets.join(' ') : '')
+      return
+    }
+    const L = Math.min(64, Math.max(1, nums.length))
+    const next = nums.slice(0, L)
+    onChange({ ...value, patternLength: L, offsets: next })
+    setPatternDraft(next.join(' '))
+  }
+
   function randomizeOffsets() {
     if (n <= 0) return
     const { min, max } = clampPaltaOffsetRange(value.offsetMin, value.offsetMax, n)
-    patch({
-      offsets: randomOffsetsArray(value.patternLength, min, max),
-    })
+    const next = randomOffsetsArray(value.patternLength, min, max)
+    patch({ offsets: next })
+    setPatternDraft(next.join(' '))
   }
 
   return (
@@ -82,7 +110,7 @@ export default function PaltaExerciseEditor({
         <p className="custom-melody-editor-hint">
           Build a short shape of jumps, then move that shape step‑by‑step up the scale (and optionally
           back down). Choose a scale and sizes below, then tap <strong>Randomize pattern</strong> for a
-          new shape. Hover labels marked with “?” for more detail.
+          new shape, or type the pattern below. Hover labels marked with “?” for more detail.
         </p>
       </div>
 
@@ -207,37 +235,37 @@ export default function PaltaExerciseEditor({
           ) : null}
         </label>
 
-        <label className="palta-field palta-field-tipped" title={TIP_MAX_NOTES}>
+        <label className="palta-field palta-field-tipped" title={TIP_MAX_GROUPS}>
           <span className="palta-field-label">
-            Max notes in the full line <span className="palta-tip-mark" aria-hidden="true">?</span>
+            Max pattern repeats (whole line) <span className="palta-tip-mark" aria-hidden="true">?</span>
           </span>
           <div className="palta-inline-row">
             <input
               className="palta-num-input palta-num-input-wide"
               type="number"
               min={0}
-              max={500000}
+              max={50000}
               step={1}
-              value={value.wholePhraseMaxSteps}
+              value={value.wholePhraseMaxGroups}
               disabled={disabled}
               onChange={e => {
                 const v = Number(e.target.value)
                 patch({
-                  wholePhraseMaxSteps: Number.isFinite(v)
-                    ? Math.max(0, Math.min(500_000, Math.round(v)))
-                    : value.wholePhraseMaxSteps,
+                  wholePhraseMaxGroups: Number.isFinite(v)
+                    ? Math.max(0, Math.min(50_000, Math.round(v)))
+                    : value.wholePhraseMaxGroups,
                 })
               }}
-              title={TIP_MAX_NOTES}
+              title={TIP_MAX_GROUPS}
             />
           </div>
-          {n > 0 ? (
+          {phraseStats && phraseStats.fullGroups > 0 ? (
             <span className="palta-field-hint">
-              About {effective.totalSteps} notes in the line (starting steps {effective.low}–{effective.high}
-              {value.wholePhraseMaxSteps > 0 && effective.high < roots.high
-                ? `; shortened from step ${roots.high}`
-                : ''}
-              ).
+              Line uses {phraseStats.usedGroups} of {phraseStats.fullGroups} pattern repeat
+              {phraseStats.fullGroups === 1 ? '' : 's'}
+              {phraseStats.usedGroups < phraseStats.fullGroups ? ' (capped)' : ''} — about{' '}
+              {phraseStats.noteCount} single notes ({phraseStats.usedGroups} × {value.patternLength} per
+              repeat).
             </span>
           ) : null}
         </label>
@@ -254,13 +282,37 @@ export default function PaltaExerciseEditor({
         </label>
       </div>
 
-      <div className="palta-offsets-row">
-        <span className="palta-offsets-label" title="The numbers used for the latest random pattern (jumps along the scale).">
-          Current pattern
-        </span>
-        <code className="palta-offsets-code">
-          {value.offsets.length > 0 ? value.offsets.join(' ') : '—'}
-        </code>
+      <div className="palta-offsets-block">
+        <label className="palta-offsets-label-row" htmlFor="palta-pattern-input">
+          <span className="palta-offsets-label" title={TIP_PATTERN_EDIT}>
+            Current pattern <span className="palta-tip-mark" aria-hidden="true">?</span>
+          </span>
+        </label>
+        <input
+          id="palta-pattern-input"
+          className="palta-offsets-input"
+          type="text"
+          autoComplete="off"
+          spellCheck={false}
+          disabled={disabled || n <= 0}
+          placeholder="e.g. 0 0 1 4"
+          value={patternDraft}
+          title={TIP_PATTERN_EDIT}
+          onChange={e => setPatternDraft(e.target.value)}
+          onFocus={() => {
+            patternFocusRef.current = true
+          }}
+          onBlur={() => {
+            commitPatternDraft()
+            patternFocusRef.current = false
+          }}
+          onKeyDown={e => {
+            if (e.key === 'Enter') {
+              commitPatternDraft()
+              e.currentTarget.blur()
+            }
+          }}
+        />
       </div>
 
       <div className="custom-melody-tool-row">

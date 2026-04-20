@@ -77,6 +77,35 @@ export function buildPaltaPhrases(params: BuildPaltaPhrasesParams): ExercisePhra
   return phrases
 }
 
+/** Count stamped pattern groups across all phrases (playback order). */
+export function countExerciseGroupsInPhrases(phrases: ExercisePhrase[]): number {
+  return phrases.reduce((acc, ph) => acc + ph.groups.length, 0)
+}
+
+/**
+ * Keep only the first `maxGroups` groups in phrase order (ascending chunk first, then descending).
+ * `maxGroups <= 0` means no limit (returns `phrases` unchanged).
+ */
+export function truncatePaltaPhrasesToMaxGroups(
+  phrases: ExercisePhrase[],
+  maxGroups: number,
+): ExercisePhrase[] {
+  if (maxGroups <= 0 || phrases.length === 0) return phrases
+  const total = countExerciseGroupsInPhrases(phrases)
+  if (total <= maxGroups) return phrases
+
+  const out: ExercisePhrase[] = []
+  let remaining = maxGroups
+  for (const phrase of phrases) {
+    if (remaining <= 0) break
+    const take = phrase.groups.slice(0, remaining)
+    if (take.length === 0) continue
+    out.push({ ...phrase, groups: take })
+    remaining -= take.length
+  }
+  return out.length > 0 ? out : [{ label: phrases[0]?.label ?? 'palta', groups: [] }]
+}
+
 export function clampInt(v: number, lo: number, hi: number): number {
   if (!Number.isFinite(v)) return lo
   return Math.max(lo, Math.min(hi, Math.round(v)))
@@ -122,73 +151,4 @@ export function clampPaltaRootRange(
   const low = Math.min(lo, hi)
   const high = Math.max(lo, hi)
   return { low, high }
-}
-
-/** Total steps for `numRoot` consecutive roots (one stamped group per root). */
-export function paltaStepCountForRootSpan(
-  numRoots: number,
-  patternLength: number,
-  includeDescending: boolean,
-): number {
-  const L = patternLength
-  if (numRoots <= 0 || L <= 0) return 0
-  if (!includeDescending || numRoots <= 1) return numRoots * L
-  return 2 * numRoots * L
-}
-
-/**
- * Largest root-span (number of consecutive roots from `low`) not exceeding `maxTotalSteps`.
- * Caps at `maxDesiredRoots` (typically full sweep width).
- */
-export function maxRootSpanForStepLimit(
-  patternLength: number,
-  includeDescending: boolean,
-  maxTotalSteps: number,
-  maxDesiredRoots: number,
-): number {
-  const L = patternLength
-  if (L <= 0 || maxDesiredRoots <= 0) return 0
-  if (maxTotalSteps <= 0) return maxDesiredRoots
-  let best = 1
-  for (let g = 1; g <= maxDesiredRoots; g++) {
-    const steps = paltaStepCountForRootSpan(g, L, includeDescending)
-    if (steps <= maxTotalSteps) best = g
-    else break
-  }
-  return best
-}
-
-export type EffectivePaltaBoundsParams = {
-  scaleLen: number
-  rootLow: number
-  rootHigh: number
-  patternLength: number
-  includeDescending: boolean
-  wholePhraseMaxSteps: number
-}
-
-/** Clamped root sweep, optionally shortened from the top to respect `wholePhraseMaxSteps`. */
-export function effectivePaltaRootBounds(p: EffectivePaltaBoundsParams): {
-  low: number
-  high: number
-  totalSteps: number
-} {
-  const { low, high } = clampPaltaRootRange(p.rootLow, p.rootHigh, p.scaleLen)
-  const span = high - low + 1
-  const L = p.patternLength
-  if (L <= 0) return { low, high, totalSteps: 0 }
-  if (p.wholePhraseMaxSteps <= 0) {
-    return {
-      low,
-      high,
-      totalSteps: paltaStepCountForRootSpan(span, L, p.includeDescending),
-    }
-  }
-  const g = maxRootSpanForStepLimit(L, p.includeDescending, p.wholePhraseMaxSteps, span)
-  const highCapped = low + g - 1
-  return {
-    low,
-    high: highCapped,
-    totalSteps: paltaStepCountForRootSpan(g, L, p.includeDescending),
-  }
 }

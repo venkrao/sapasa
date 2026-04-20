@@ -4,7 +4,7 @@ import CustomMelodyEditor from './CustomMelodyEditor'
 import { EarTrainerAudioEngine, type TonePreset } from './audio/earTrainerAudioEngine'
 import { notationOfDisplay } from './carnaticNotation'
 import PaltaExerciseEditor from './PaltaExerciseEditor'
-import type { PaltaConfig } from './paltaConfig'
+import type { PaltaConfig, PaltaPhraseStats } from './paltaConfig'
 import { deriveFlatSequence, sequenceStepHz, type ExercisePhrase, type SequenceStep } from './exerciseModel'
 
 export type Option = { id: string; label: string }
@@ -56,6 +56,7 @@ export type ExercisePanelProps = {
   onPaltaConfigChange?: (c: PaltaConfig) => void
   paltaScaleRagaOptions?: { id: string; label: string }[]
   paltaScaleDegreeCount?: number
+  paltaPhraseStats?: PaltaPhraseStats | null
 
   /** AI vocal coach (Carnatic Training sidebar) — Phase 2 */
   coachEnabled?: boolean
@@ -104,6 +105,7 @@ export default function ExercisePanel({
   onPaltaConfigChange,
   paltaScaleRagaOptions = [],
   paltaScaleDegreeCount = 0,
+  paltaPhraseStats = null,
 }: ExercisePanelProps) {
   const audioRef = useRef<EarTrainerAudioEngine | null>(null)
   const playsThisStepRef = useRef(0)
@@ -308,6 +310,7 @@ export default function ExercisePanel({
               onChange={onPaltaConfigChange}
               scaleRagaOptions={paltaScaleRagaOptions}
               scaleDegreeCount={paltaScaleDegreeCount}
+              phraseStats={paltaPhraseStats}
               disabled={exerciseActive || autoPlayActive}
             />
           ) : null}

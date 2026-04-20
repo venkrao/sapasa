@@ -30,9 +30,10 @@ function normalizePaltaConfig(j: Partial<PaltaConfig>): PaltaConfig {
   if (typeof j.rootLow === 'number') base.rootLow = j.rootLow
   if (typeof j.rootHigh === 'number') base.rootHigh = j.rootHigh
   if (typeof j.includeDescending === 'boolean') base.includeDescending = j.includeDescending
-  if (typeof j.wholePhraseMaxSteps === 'number' && Number.isFinite(j.wholePhraseMaxSteps)) {
-    base.wholePhraseMaxSteps = Math.max(0, Math.min(500_000, Math.round(j.wholePhraseMaxSteps)))
+  if (typeof j.wholePhraseMaxGroups === 'number' && Number.isFinite(j.wholePhraseMaxGroups)) {
+    base.wholePhraseMaxGroups = Math.max(0, Math.min(50_000, Math.round(j.wholePhraseMaxGroups)))
   }
+  // Legacy: step cap was misinterpreted; ignore old key so saved configs reset cap to unlimited.
   if (Array.isArray(j.offsets) && j.offsets.every(x => typeof x === 'number' && Number.isFinite(x))) {
     base.offsets = j.offsets.map(x => Math.round(x))
   }

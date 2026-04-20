@@ -8,13 +8,15 @@ import TanpuraStrip from './TanpuraStrip'
 import CameraObservationLab from './CameraObservationLab'
 import { parseCustomMelodyText } from './customMelodyParse'
 import { CUSTOM_MELODY_EXERCISE_ID, loadCustomMelodyText, saveCustomMelodyText } from './customMelodyStorage'
-import type { PaltaConfig } from './paltaConfig'
+import type { PaltaConfig, PaltaPhraseStats } from './paltaConfig'
 import {
   buildPaltaPhrases,
   clampPaltaOffsetRange,
-  effectivePaltaRootBounds,
+  clampPaltaRootRange,
+  countExerciseGroupsInPhrases,
   madhyaScaleFromArohanam,
   randomOffsetsArray,
+  truncatePaltaPhrasesToMaxGroups,
 } from './paltaGenerator'
 import { loadPaltaConfig, savePaltaConfig } from './paltaStorage'
 import { CUSTOM_MELODY_RAGA_ID } from './ragas/customMelodyRaga'
@@ -284,18 +286,15 @@ export default function PitchMonitorScreen({ onHome }: Props) {
     paltaConfig.offsetMax,
   ])
 
-  const paltaPhrases: ExercisePhrase[] = useMemo(() => {
+  const paltaPhrasesUncapped: ExercisePhrase[] = useMemo(() => {
     if (!isPaltaRaga || paltaMadhyaScale.length === 0) return []
     if (paltaConfig.offsets.length !== paltaConfig.patternLength) return []
     const n = paltaMadhyaScale.length
-    const { low, high } = effectivePaltaRootBounds({
-      scaleLen: n,
-      rootLow: paltaConfig.rootLow,
-      rootHigh: paltaConfig.rootHigh,
-      patternLength: paltaConfig.patternLength,
-      includeDescending: paltaConfig.includeDescending,
-      wholePhraseMaxSteps: paltaConfig.wholePhraseMaxSteps,
-    })
+    const { low, high } = clampPaltaRootRange(
+      paltaConfig.rootLow,
+      paltaConfig.rootHigh,
+      n,
+    )
     return buildPaltaPhrases({
       scale: paltaMadhyaScale,
       offsets: paltaConfig.offsets,
@@ -311,8 +310,20 @@ export default function PitchMonitorScreen({ onHome }: Props) {
     paltaConfig.rootLow,
     paltaConfig.rootHigh,
     paltaConfig.includeDescending,
-    paltaConfig.wholePhraseMaxSteps,
   ])
+
+  const paltaPhrases: ExercisePhrase[] = useMemo(
+    () => truncatePaltaPhrasesToMaxGroups(paltaPhrasesUncapped, paltaConfig.wholePhraseMaxGroups),
+    [paltaPhrasesUncapped, paltaConfig.wholePhraseMaxGroups],
+  )
+
+  const paltaPhraseStats: PaltaPhraseStats | null = useMemo(() => {
+    if (!isPaltaRaga) return null
+    const fullGroups = countExerciseGroupsInPhrases(paltaPhrasesUncapped)
+    const usedGroups = countExerciseGroupsInPhrases(paltaPhrases)
+    const noteCount = deriveFlatSequence(paltaPhrases).length
+    return { fullGroups, usedGroups, noteCount }
+  }, [isPaltaRaga, paltaPhrasesUncapped, paltaPhrases])
 
   const paltaFlatSequence = useMemo(() => deriveFlatSequence(paltaPhrases), [paltaPhrases])
 
@@ -998,6 +1009,7 @@ export default function PitchMonitorScreen({ onHome }: Props) {
           onPaltaConfigChange={setPaltaConfig}
           paltaScaleRagaOptions={paltaScaleRagaOptions}
           paltaScaleDegreeCount={paltaMadhyaScale.length}
+          paltaPhraseStats={isPaltaRaga ? paltaPhraseStats : null}
           customMelodyText={customMelodyText}
           onCustomMelodyTextChange={setCustomMelodyText}
           customMelodyParseError={customMelodyParseError}
