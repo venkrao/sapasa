@@ -8,7 +8,17 @@ import TanpuraStrip from './TanpuraStrip'
 import CameraObservationLab from './CameraObservationLab'
 import { parseCustomMelodyText } from './customMelodyParse'
 import { CUSTOM_MELODY_EXERCISE_ID, loadCustomMelodyText, saveCustomMelodyText } from './customMelodyStorage'
+import type { PaltaConfig } from './paltaConfig'
+import {
+  buildPaltaPhrases,
+  clampPaltaOffsetRange,
+  effectivePaltaRootBounds,
+  madhyaScaleFromArohanam,
+  randomOffsetsArray,
+} from './paltaGenerator'
+import { loadPaltaConfig, savePaltaConfig } from './paltaStorage'
 import { CUSTOM_MELODY_RAGA_ID } from './ragas/customMelodyRaga'
+import { PALTA_EXERCISE_ID, PALTA_RAGA_ID } from './ragas/paltaRaga'
 import { RAGAS, getExercise } from './exerciseCatalog'
 import { deriveFlatSequence } from './exerciseModel'
 import type { ExercisePhrase, RagaDefinition, SequenceStep } from './exerciseModel'
@@ -156,6 +166,7 @@ export default function PitchMonitorScreen({ onHome }: Props) {
   const selectedRagaTalaLabel = selectedRaga?.talaLabel ?? ''
 
   const isCustomMelodyRaga = selectedRagaId === CUSTOM_MELODY_RAGA_ID
+  const isPaltaRaga = selectedRagaId === PALTA_RAGA_ID
 
   const exerciseOptions = useMemo(() => {
     const empty = { id: '', label: 'Select exercise…' }
@@ -163,18 +174,25 @@ export default function PitchMonitorScreen({ onHome }: Props) {
     if (isCustomMelodyRaga) {
       return [empty, { id: CUSTOM_MELODY_EXERCISE_ID, label: 'Custom melody' }]
     }
+    if (isPaltaRaga) {
+      return [empty, { id: PALTA_EXERCISE_ID, label: 'Random palta' }]
+    }
     return [
       empty,
       { id: AROHANAM_AVAROHANAM_EXERCISE_ID, label: 'Arohanam & Avarohanam' },
       ...((selectedRaga?.exercises ?? []).map(e => ({ id: e.id, label: e.label }))),
     ]
-  }, [selectedRagaId, isCustomMelodyRaga, selectedRaga])
+  }, [selectedRagaId, isCustomMelodyRaga, isPaltaRaga, selectedRaga])
 
   const [selectedExerciseId, setSelectedExerciseId] = useState('')
 
   useEffect(() => {
     if (isCustomMelodyRaga) setSelectedExerciseId(CUSTOM_MELODY_EXERCISE_ID)
   }, [isCustomMelodyRaga])
+
+  useEffect(() => {
+    if (isPaltaRaga) setSelectedExerciseId(PALTA_EXERCISE_ID)
+  }, [isPaltaRaga])
 
   const isAroAvaroExercise = selectedExerciseId === AROHANAM_AVAROHANAM_EXERCISE_ID
 
@@ -186,18 +204,122 @@ export default function PitchMonitorScreen({ onHome }: Props) {
 
   const customMelodyParsed = useMemo(() => parseCustomMelodyText(customMelodyText), [customMelodyText])
 
-  const selectedExercise =
-    !isAroAvaroExercise &&
-    !isCustomMelodyRaga &&
-    selectedRagaId &&
-    selectedExerciseId
-      ? getExercise(selectedRagaId, selectedExerciseId)
-      : undefined
+  const selectedExercise = useMemo(() => {
+    if (isAroAvaroExercise || isCustomMelodyRaga) return undefined
+    if (isPaltaRaga && selectedExerciseId === PALTA_EXERCISE_ID) {
+      return getExercise(PALTA_RAGA_ID, PALTA_EXERCISE_ID)
+    }
+    if (!selectedRagaId || !selectedExerciseId) return undefined
+    return getExercise(selectedRagaId, selectedExerciseId)
+  }, [
+    isAroAvaroExercise,
+    isCustomMelodyRaga,
+    isPaltaRaga,
+    selectedRagaId,
+    selectedExerciseId,
+  ])
 
   // Convert a SequenceStep to the swara band key used by PitchGraph.
   function stepToGraphKey(step: SequenceStep): string {
     return step.swara === 'Sa' && step.octave >= 1 ? "Sa'" : step.swara
   }
+
+  const [paltaConfig, setPaltaConfig] = useState<PaltaConfig>(() => loadPaltaConfig())
+
+  useEffect(() => {
+    savePaltaConfig(paltaConfig)
+  }, [paltaConfig])
+
+  const paltaScaleRagaOptions = useMemo(
+    () =>
+      RAGAS.filter(r => r.id !== CUSTOM_MELODY_RAGA_ID && r.id !== PALTA_RAGA_ID).map(r => ({
+        id: r.id,
+        label: r.label,
+      })),
+    [],
+  )
+
+  useEffect(() => {
+    if (!isPaltaRaga) return
+    const ok = paltaScaleRagaOptions.some(o => o.id === paltaConfig.scaleRagaId)
+    if (!ok && paltaScaleRagaOptions[0]) {
+      setPaltaConfig(c => ({ ...c, scaleRagaId: paltaScaleRagaOptions[0].id }))
+    }
+  }, [isPaltaRaga, paltaConfig.scaleRagaId, paltaScaleRagaOptions])
+
+  const paltaScaleRaga = useMemo((): RagaDefinition | undefined => {
+    const chosen = RAGAS.find(r => r.id === paltaConfig.scaleRagaId)
+    if (chosen && chosen.id !== CUSTOM_MELODY_RAGA_ID && chosen.id !== PALTA_RAGA_ID) return chosen
+    return RAGAS.find(r => r.id === paltaScaleRagaOptions[0]?.id)
+  }, [paltaConfig.scaleRagaId, paltaScaleRagaOptions])
+
+  const paltaMadhyaScale = useMemo(
+    () => (paltaScaleRaga ? madhyaScaleFromArohanam(paltaScaleRaga.arohanam) : []),
+    [paltaScaleRaga],
+  )
+
+  useEffect(() => {
+    if (!isPaltaRaga) return
+    const n = paltaMadhyaScale.length
+    if (n === 0) return
+    const L = paltaConfig.patternLength
+    const o = paltaConfig.offsets
+    if (o.length === L) return
+    const { min: ra, max: rb } = clampPaltaOffsetRange(paltaConfig.offsetMin, paltaConfig.offsetMax, n)
+    setPaltaConfig(c => {
+      if (c.offsets.length === c.patternLength) return c
+      const cur = c.offsets
+      const len = c.patternLength
+      let next: number[]
+      if (cur.length < len) next = [...cur, ...randomOffsetsArray(len - cur.length, ra, rb)]
+      else next = cur.slice(0, len)
+      return { ...c, offsets: next }
+    })
+  }, [
+    isPaltaRaga,
+    paltaMadhyaScale,
+    paltaConfig.patternLength,
+    paltaConfig.offsets.length,
+    paltaConfig.offsetMin,
+    paltaConfig.offsetMax,
+  ])
+
+  const paltaPhrases: ExercisePhrase[] = useMemo(() => {
+    if (!isPaltaRaga || paltaMadhyaScale.length === 0) return []
+    if (paltaConfig.offsets.length !== paltaConfig.patternLength) return []
+    const n = paltaMadhyaScale.length
+    const { low, high } = effectivePaltaRootBounds({
+      scaleLen: n,
+      rootLow: paltaConfig.rootLow,
+      rootHigh: paltaConfig.rootHigh,
+      patternLength: paltaConfig.patternLength,
+      includeDescending: paltaConfig.includeDescending,
+      wholePhraseMaxSteps: paltaConfig.wholePhraseMaxSteps,
+    })
+    return buildPaltaPhrases({
+      scale: paltaMadhyaScale,
+      offsets: paltaConfig.offsets,
+      rootLow: low,
+      rootHigh: high,
+      includeDescending: paltaConfig.includeDescending,
+    })
+  }, [
+    isPaltaRaga,
+    paltaMadhyaScale,
+    paltaConfig.offsets,
+    paltaConfig.patternLength,
+    paltaConfig.rootLow,
+    paltaConfig.rootHigh,
+    paltaConfig.includeDescending,
+    paltaConfig.wholePhraseMaxSteps,
+  ])
+
+  const paltaFlatSequence = useMemo(() => deriveFlatSequence(paltaPhrases), [paltaPhrases])
+
+  const paltaAllowedSwaras = useMemo(
+    () => Array.from(new Set(paltaFlatSequence.map(stepToGraphKey))),
+    [paltaFlatSequence],
+  )
 
   // Spec-driven "Arohanam & Avarohanam" generated from the selected raga.
   const aroAvaroPhrases: ExercisePhrase[] = useMemo(
@@ -251,12 +373,16 @@ export default function PitchMonitorScreen({ onHome }: Props) {
         ? aroAvaroFlatSequence
         : isCustomMelodyRaga
           ? customMelodyFlatSequence
-          : selectedExercise?.flatSequence ?? [],
+          : isPaltaRaga
+            ? paltaFlatSequence
+            : selectedExercise?.flatSequence ?? [],
     [
       isAroAvaroExercise,
       isCustomMelodyRaga,
+      isPaltaRaga,
       aroAvaroFlatSequence,
       customMelodyFlatSequence,
+      paltaFlatSequence,
       selectedExercise?.flatSequence,
     ],
   )
@@ -267,12 +393,16 @@ export default function PitchMonitorScreen({ onHome }: Props) {
         ? aroAvaroPhrases
         : isCustomMelodyRaga
           ? customMelodyPhrases
-          : selectedExercise?.phrases ?? [],
+          : isPaltaRaga
+            ? paltaPhrases
+            : selectedExercise?.phrases ?? [],
     [
       isAroAvaroExercise,
       isCustomMelodyRaga,
+      isPaltaRaga,
       aroAvaroPhrases,
       customMelodyPhrases,
+      paltaPhrases,
       selectedExercise?.phrases,
     ],
   )
@@ -281,7 +411,9 @@ export default function PitchMonitorScreen({ onHome }: Props) {
     ? aroAvaroAllowedSwaras
     : isCustomMelodyRaga
       ? customMelodyAllowedSwaras
-      : selectedExercise?.allowedSwaras ?? null
+      : isPaltaRaga
+        ? paltaAllowedSwaras
+        : selectedExercise?.allowedSwaras ?? null
 
   const [exerciseActive, setExerciseActive] = useState(false)
   const [expectedIndex, setExpectedIndex] = useState(0)
@@ -456,21 +588,37 @@ export default function PitchMonitorScreen({ onHome }: Props) {
   const expectedSwara = expectedStep ? stepToGraphKey(expectedStep) : null
   const totalSteps = flatSequence.length
 
+  const paltaReady =
+    isPaltaRaga &&
+    paltaMadhyaScale.length > 0 &&
+    paltaConfig.offsets.length === paltaConfig.patternLength &&
+    paltaFlatSequence.length > 0
+
   const canStart =
     !!selectedRagaId &&
     totalSteps > 0 &&
-    (isCustomMelodyRaga ? customMelodyParsed.ok : !!selectedExerciseId)
+    (isCustomMelodyRaga
+      ? customMelodyParsed.ok
+      : isPaltaRaga
+        ? paltaReady
+        : !!selectedExerciseId)
 
   const exerciseLabelForCoach = useMemo(() => {
     if (!selectedExerciseId || !selectedRagaId) return ''
     if (isAroAvaroExercise) return 'Arohanam & Avarohanam'
     if (isCustomMelodyRaga) return 'Custom melody'
+    if (isPaltaRaga) {
+      const base = getExercise(PALTA_RAGA_ID, PALTA_EXERCISE_ID)?.label ?? 'Palta'
+      return paltaScaleRaga ? `${base} (${paltaScaleRaga.label})` : base
+    }
     return selectedExercise?.label ?? selectedExerciseId
   }, [
     selectedExerciseId,
     selectedRagaId,
     isAroAvaroExercise,
     isCustomMelodyRaga,
+    isPaltaRaga,
+    paltaScaleRaga,
     selectedExercise?.label,
   ])
 
@@ -844,7 +992,12 @@ export default function PitchMonitorScreen({ onHome }: Props) {
           coachError={coachError}
           coachHistory={coachHistory}
           showCustomMelodyEditor={isCustomMelodyRaga}
-          hideExerciseSelect={isCustomMelodyRaga}
+          hideExerciseSelect={isCustomMelodyRaga || isPaltaRaga}
+          showPaltaEditor={isPaltaRaga}
+          paltaConfig={isPaltaRaga ? paltaConfig : null}
+          onPaltaConfigChange={setPaltaConfig}
+          paltaScaleRagaOptions={paltaScaleRagaOptions}
+          paltaScaleDegreeCount={paltaMadhyaScale.length}
           customMelodyText={customMelodyText}
           onCustomMelodyTextChange={setCustomMelodyText}
           customMelodyParseError={customMelodyParseError}

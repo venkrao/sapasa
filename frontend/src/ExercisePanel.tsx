@@ -3,6 +3,8 @@ import './ExercisePanel.css'
 import CustomMelodyEditor from './CustomMelodyEditor'
 import { EarTrainerAudioEngine, type TonePreset } from './audio/earTrainerAudioEngine'
 import { notationOfDisplay } from './carnaticNotation'
+import PaltaExerciseEditor from './PaltaExerciseEditor'
+import type { PaltaConfig } from './paltaConfig'
 import { deriveFlatSequence, sequenceStepHz, type ExercisePhrase, type SequenceStep } from './exerciseModel'
 
 export type Option = { id: string; label: string }
@@ -49,6 +51,12 @@ export type ExercisePanelProps = {
   /** When true, only one exercise applies (Custom Melody raga) — hide the Exercise dropdown. */
   hideExerciseSelect?: boolean
 
+  showPaltaEditor?: boolean
+  paltaConfig?: PaltaConfig | null
+  onPaltaConfigChange?: (c: PaltaConfig) => void
+  paltaScaleRagaOptions?: { id: string; label: string }[]
+  paltaScaleDegreeCount?: number
+
   /** AI vocal coach (Carnatic Training sidebar) — Phase 2 */
   coachEnabled?: boolean
   onAskCoach?: () => void
@@ -91,6 +99,11 @@ export default function ExercisePanel({
   onCustomMelodyTextChange,
   customMelodyParseError = null,
   hideExerciseSelect = false,
+  showPaltaEditor = false,
+  paltaConfig = null,
+  onPaltaConfigChange,
+  paltaScaleRagaOptions = [],
+  paltaScaleDegreeCount = 0,
 }: ExercisePanelProps) {
   const audioRef = useRef<EarTrainerAudioEngine | null>(null)
   const playsThisStepRef = useRef(0)
@@ -263,6 +276,16 @@ export default function ExercisePanel({
               value={customMelodyText}
               onChange={onCustomMelodyTextChange}
               parseError={customMelodyParseError}
+              disabled={exerciseActive || autoPlayActive}
+            />
+          ) : null}
+
+          {showPaltaEditor && paltaConfig && onPaltaConfigChange ? (
+            <PaltaExerciseEditor
+              value={paltaConfig}
+              onChange={onPaltaConfigChange}
+              scaleRagaOptions={paltaScaleRagaOptions}
+              scaleDegreeCount={paltaScaleDegreeCount}
               disabled={exerciseActive || autoPlayActive}
             />
           ) : null}

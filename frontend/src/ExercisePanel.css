@@ -286,6 +286,115 @@
   margin-top: 8px;
 }
 
+/* Palta (random) — shares custom-melody-editor shell */
+.palta-editor {
+  margin-top: 4px;
+}
+
+.palta-field-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.palta-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.palta-field-tipped {
+  cursor: help;
+}
+
+.palta-tip-mark {
+  display: inline-block;
+  margin-left: 2px;
+  font-size: 0.72em;
+  font-weight: 800;
+  color: #6b7fd7;
+  user-select: none;
+}
+
+.palta-field-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.palta-field-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #a3a3a3;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.palta-field-hint {
+  font-size: 0.68rem;
+  color: #7a7a7a;
+  font-weight: 600;
+}
+
+.palta-inline-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.palta-num-input {
+  width: 4.2rem;
+  font-size: 0.8rem;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid #333;
+  background: #0d0d0d;
+  color: #e5e5e5;
+}
+
+.palta-num-input-wide {
+  width: 6.5rem;
+}
+
+.palta-select-wide {
+  width: 100%;
+  max-width: 100%;
+}
+
+.palta-presets {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.palta-preset-btn {
+  min-width: 2.25rem;
+}
+
+.palta-offsets-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 0.78rem;
+}
+
+.palta-offsets-label {
+  font-weight: 800;
+  color: #a3a3a3;
+}
+
+.palta-offsets-code {
+  font-size: 0.8rem;
+  color: #c4d4f0;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
 .exercise-btn {
   font-size: 0.8rem;
   font-weight: 700;
