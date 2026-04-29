@@ -108,6 +108,7 @@ export default function ExercisePanel({
   paltaPhraseStats = null,
 }: ExercisePanelProps) {
   const audioRef = useRef<EarTrainerAudioEngine | null>(null)
+  const referencePlayInFlightRef = useRef(false)
   const playsThisStepRef = useRef(0)
   const sessionPlaysRef = useRef(0)
   const [referenceHint, setReferenceHint] = useState<string | null>(null)
@@ -210,38 +211,53 @@ export default function ExercisePanel({
     setReferenceHint(null)
   }, [expectedIndex])
 
+  const playReferenceForStep = useCallback(
+    async (step: SequenceStep, countHints: boolean) => {
+      if (referencePlayInFlightRef.current) return
+      referencePlayInFlightRef.current = true
+      try {
+        stopAutoPlay()
+
+        if (!audioRef.current) audioRef.current = new EarTrainerAudioEngine()
+
+        // Block exercise matching before audio: mic can pick up the speaker immediately.
+        const suppressMs = Math.ceil(REFERENCE_NOTE_DURATION_SEC * 1000 + 850)
+        onReferencePlaybackStart?.(suppressMs)
+
+        const hz = sequenceStepHz(step, saHz)
+        await audioRef.current.playNote(hz, REFERENCE_NOTE_DURATION_SEC, tonePreset)
+
+        if (countHints) {
+          playsThisStepRef.current += 1
+          sessionPlaysRef.current += 1
+          const perStep = playsThisStepRef.current
+          const session = sessionPlaysRef.current
+          const sessionThreshold = Math.max(12, totalSteps * 2)
+
+          let hint: string | null = null
+          if (perStep >= 6) {
+            hint =
+              'You’ve replayed the reference many times on this note — try once without it, even if it’s rough.'
+          } else if (perStep >= 3) {
+            hint = 'Try to match from memory before playing the tone again.'
+          } else if (session >= sessionThreshold) {
+            hint =
+              'You’ve used the reference a lot this run — lean on your ear for the next few notes if you can.'
+          }
+
+          setReferenceHint(hint)
+        }
+      } finally {
+        referencePlayInFlightRef.current = false
+      }
+    },
+    [onReferencePlaybackStart, saHz, tonePreset, totalSteps, stopAutoPlay],
+  )
+
   const playExpectedNote = useCallback(async () => {
     if (!exerciseActive || !expectedStep) return
-
-    if (!audioRef.current) audioRef.current = new EarTrainerAudioEngine()
-
-    playsThisStepRef.current += 1
-    sessionPlaysRef.current += 1
-
-    // Block exercise matching before audio: mic can pick up the speaker immediately.
-    const suppressMs = Math.ceil(REFERENCE_NOTE_DURATION_SEC * 1000 + 850)
-    onReferencePlaybackStart?.(suppressMs)
-
-    const hz = sequenceStepHz(expectedStep, saHz)
-    await audioRef.current.playNote(hz, REFERENCE_NOTE_DURATION_SEC, tonePreset)
-
-    const perStep = playsThisStepRef.current
-    const session = sessionPlaysRef.current
-    const sessionThreshold = Math.max(12, totalSteps * 2)
-
-    let hint: string | null = null
-    if (perStep >= 6) {
-      hint =
-        'You’ve replayed the reference many times on this note — try once without it, even if it’s rough.'
-    } else if (perStep >= 3) {
-      hint = 'Try to match from memory before playing the tone again.'
-    } else if (session >= sessionThreshold) {
-      hint =
-        'You’ve used the reference a lot this run — lean on your ear for the next few notes if you can.'
-    }
-
-    setReferenceHint(hint)
-  }, [exerciseActive, expectedStep, onReferencePlaybackStart, saHz, tonePreset, totalSteps])
+    await playReferenceForStep(expectedStep, true)
+  }, [exerciseActive, expectedStep, playReferenceForStep])
 
   const ragaLabel =
     ragaOptions.find(r => r.id === selectedRagaId)?.label ??
@@ -529,10 +545,22 @@ export default function ExercisePanel({
                         'swara-tile ' +
                         (isExpected ? 'expected ' : '') +
                         (isAutoPlaying ? 'autoplay ' : '')
+                      const label = notationOfDisplay(step)
                       return (
-                        <span key={gIdx + ':' + sIdx} className={tileClass.trim()}>
-                          {notationOfDisplay(step)}
-                        </span>
+                        <button
+                          key={gIdx + ':' + sIdx}
+                          type="button"
+                          className={tileClass.trim() + ' swara-tile-btn'}
+                          aria-label={
+                            isExpected
+                              ? `Current step — play reference: ${label}`
+                              : `Play ${label} at your shruti`
+                          }
+                          title="Play this swara. Same as “Play note” for the green (expected) tile during Sing & Test."
+                          onClick={() => void playReferenceForStep(step, isExpected)}
+                        >
+                          {label}
+                        </button>
                       )
                     })
 
