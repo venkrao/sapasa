@@ -3,11 +3,13 @@ import PitchGraph from './PitchGraph'
 import { SA_HZ } from './swaras'
 import { EarTrainerAudioEngine, type TonePreset } from './audio/earTrainerAudioEngine'
 import {
+  analyzeMelodyPerformance,
   DEFAULT_MELODY_EXTRACT_CONFIG,
   extractMelodyNoteEvents,
   midiToHz,
   type MelodyFrame,
   type MelodyNoteEvent,
+  type PerformanceAnalysis,
 } from './melodyCapture'
 import './MelodyCaptureScreen.css'
 
@@ -33,10 +35,13 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
   const audioRef = useRef<EarTrainerAudioEngine | null>(null)
   const replayRunIdRef = useRef(0)
 
+  const [captureTarget, setCaptureTarget] = useState<'reference' | 'attempt'>('reference')
   const [status, setStatus] = useState<'idle' | 'capturing' | 'captured' | 'replaying'>('idle')
   const [captureStartedAt, setCaptureStartedAt] = useState<number | null>(null)
   const [captureStoppedAt, setCaptureStoppedAt] = useState<number | null>(null)
-  const [events, setEvents] = useState<MelodyNoteEvent[]>([])
+  const [referenceEvents, setReferenceEvents] = useState<MelodyNoteEvent[]>([])
+  const [attemptEvents, setAttemptEvents] = useState<MelodyNoteEvent[]>([])
+  const [analysis, setAnalysis] = useState<PerformanceAnalysis | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [captureElapsedMs, setCaptureElapsedMs] = useState(0)
   const [tonePreset, setTonePreset] = useState<TonePreset>('piano')
@@ -58,7 +63,9 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
   const clearCapture = useCallback(() => {
     stopReplay()
     framesRef.current = []
-    setEvents([])
+    setReferenceEvents([])
+    setAttemptEvents([])
+    setAnalysis(null)
     setCaptureStartedAt(null)
     setCaptureStoppedAt(null)
     setCaptureElapsedMs(0)
@@ -74,13 +81,13 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
     stopReplay()
     const now = Date.now()
     framesRef.current = []
-    setEvents([])
+    if (captureTarget === 'attempt') setAnalysis(null)
     setError(null)
     setCaptureStartedAt(now)
     setCaptureStoppedAt(null)
     setCaptureElapsedMs(0)
     setStatus('capturing')
-  }, [connected, stopReplay])
+  }, [captureTarget, connected, stopReplay])
 
   const stopCapture = useCallback(() => {
     if (statusRef.current !== 'capturing') return
@@ -89,17 +96,19 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
     setCaptureStoppedAt(stoppedAt)
     setCaptureElapsedMs(captureStartedAt ? stoppedAt - captureStartedAt : 0)
     const extracted = extractMelodyNoteEvents(captured, DEFAULT_MELODY_EXTRACT_CONFIG)
-    setEvents(extracted)
+    if (captureTarget === 'reference') setReferenceEvents(extracted)
+    else setAttemptEvents(extracted)
     setStatus('captured')
     setError(
       extracted.length === 0
         ? 'No stable notes captured. Try vocals-only source and slightly louder vocal signal.'
         : null,
     )
-  }, [captureStartedAt])
+  }, [captureStartedAt, captureTarget])
 
   const replayMelody = useCallback(async () => {
-    if (events.length === 0) return
+    const playEvents = captureTarget === 'reference' ? referenceEvents : attemptEvents
+    if (playEvents.length === 0) return
     stopReplay()
     setStatus('replaying')
     setError(null)
@@ -107,9 +116,9 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
     if (!audioRef.current) audioRef.current = new EarTrainerAudioEngine()
     await audioRef.current.ensureStarted()
 
-    const first = events[0].startMs
+    const first = playEvents[0].startMs
     let playbackMs = first
-    for (const ev of events) {
+    for (const ev of playEvents) {
       if (runId !== replayRunIdRef.current) return
       const wait = ev.startMs - playbackMs
       await waitMs(wait)
@@ -119,7 +128,17 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
       playbackMs = ev.startMs
     }
     if (runId === replayRunIdRef.current) setStatus('captured')
-  }, [events, stopReplay, tonePreset])
+  }, [attemptEvents, captureTarget, referenceEvents, stopReplay, tonePreset])
+
+  const runAnalysis = useCallback(() => {
+    if (referenceEvents.length === 0 || attemptEvents.length === 0) {
+      setError('Capture both Reference and Attempt before analysis.')
+      return
+    }
+    const result = analyzeMelodyPerformance(referenceEvents, attemptEvents)
+    setAnalysis(result)
+    setError(null)
+  }, [attemptEvents, referenceEvents])
 
   useEffect(() => {
     listeningRef.current = listening
@@ -208,9 +227,29 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
 
   const captureSummary = useMemo(() => {
     if (status === 'capturing') return `Capturing... ${(captureElapsedMs / 1000).toFixed(1)}s`
-    if (events.length === 0 || captureStartedAt == null || captureStoppedAt == null) return 'No capture yet'
-    return `${events.length} notes · ${((captureStoppedAt - captureStartedAt) / 1000).toFixed(1)}s`
-  }, [status, captureElapsedMs, events.length, captureStartedAt, captureStoppedAt])
+    const selectedEvents = captureTarget === 'reference' ? referenceEvents : attemptEvents
+    if (selectedEvents.length === 0 || captureStartedAt == null || captureStoppedAt == null) {
+      return captureTarget === 'reference' ? 'No reference capture yet' : 'No attempt capture yet'
+    }
+    return `${selectedEvents.length} notes · ${((captureStoppedAt - captureStartedAt) / 1000).toFixed(1)}s`
+  }, [status, captureElapsedMs, captureTarget, referenceEvents, attemptEvents, captureStartedAt, captureStoppedAt])
+
+  const matchStats = useMemo(() => {
+    if (!analysis) return null
+    const matched = analysis.matched.length
+    const refMissed = analysis.unmatchedReference.length
+    const attExtra = analysis.unmatchedAttempt.length
+    const total = Math.max(1, matched + refMissed + attExtra)
+    return {
+      matched,
+      refMissed,
+      attExtra,
+      matchedPct: (matched / total) * 100,
+      refMissedPct: (refMissed / total) * 100,
+      attExtraPct: (attExtra / total) * 100,
+      confidencePct: Math.round(analysis.averageConfidence * 100),
+    }
+  }, [analysis])
 
   return (
     <div className="app">
@@ -223,6 +262,22 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
       </header>
 
       <div className="melody-capture-toolbar">
+        <div className="melody-tab-row">
+          <button
+            className={'listen-button ' + (captureTarget === 'reference' ? 'on' : 'off')}
+            type="button"
+            onClick={() => setCaptureTarget('reference')}
+          >
+            Reference
+          </button>
+          <button
+            className={'listen-button ' + (captureTarget === 'attempt' ? 'on' : 'off')}
+            type="button"
+            onClick={() => setCaptureTarget('attempt')}
+          >
+            Attempt
+          </button>
+        </div>
         <button className={'listen-button ' + (listening ? 'on' : 'off')} onClick={toggleListening} type="button">
           {listening ? 'Pause listening' : 'Listen'}
         </button>
@@ -232,13 +287,15 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
           onClick={status === 'capturing' ? stopCapture : startCapture}
           disabled={!connected && status !== 'capturing'}
         >
-          {status === 'capturing' ? 'Stop capture' : 'Capture melody'}
+          {status === 'capturing'
+            ? `Stop ${captureTarget}`
+            : `Capture ${captureTarget === 'reference' ? 'reference' : 'attempt'}`}
         </button>
         <button
           className="listen-button"
           type="button"
           onClick={status === 'replaying' ? stopReplay : () => void replayMelody()}
-          disabled={events.length === 0}
+          disabled={(captureTarget === 'reference' ? referenceEvents : attemptEvents).length === 0}
         >
           {status === 'replaying' ? 'Stop replay' : 'Replay melody'}
         </button>
@@ -249,10 +306,58 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
           <option value="piano">Piano</option>
           <option value="sine">Sine</option>
         </select>
+        <button
+          className="listen-button"
+          type="button"
+          onClick={runAnalysis}
+          disabled={referenceEvents.length === 0 || attemptEvents.length === 0 || status === 'capturing'}
+        >
+          Analyze attempt
+        </button>
         <span className="melody-status-chip">{connected ? 'Connected' : 'Disconnected'}</span>
         <span className="melody-status-chip">{captureSummary}</span>
+        <span className="melody-status-chip">
+          Ref {referenceEvents.length} · Attempt {attemptEvents.length}
+        </span>
         {error ? <span className="melody-status-chip melody-status-error">{error}</span> : null}
       </div>
+
+      {analysis && (
+        <div className="melody-analysis-panel">
+          <div className="melody-analysis-title">Performance Summary</div>
+          <div className="melody-confidence-row">
+            <span className="melody-confidence-label">Match confidence</span>
+            <span className="melody-confidence-value">
+              {matchStats?.confidencePct ?? 0}%
+            </span>
+          </div>
+          <div className="melody-analysis-scores">
+            <span className="melody-score-chip">Overall {analysis.overallScore}</span>
+            <span className="melody-score-chip">Pitch {analysis.pitchScore}</span>
+            <span className="melody-score-chip">Rhythm {analysis.rhythmScore}</span>
+            <span className="melody-score-chip">Stability {analysis.stabilityScore}</span>
+          </div>
+          {matchStats && (
+            <div className="melody-match-chart-wrap" aria-label="Matched versus unmatched note counts">
+              <div className="melody-match-chart">
+                <div className="melody-match-seg melody-match-seg-ok" style={{ width: `${matchStats.matchedPct}%` }} />
+                <div className="melody-match-seg melody-match-seg-ref" style={{ width: `${matchStats.refMissedPct}%` }} />
+                <div className="melody-match-seg melody-match-seg-att" style={{ width: `${matchStats.attExtraPct}%` }} />
+              </div>
+              <div className="melody-match-legend">
+                <span className="melody-match-key melody-match-key-ok">Matched {matchStats.matched}</span>
+                <span className="melody-match-key melody-match-key-ref">Ref missed {matchStats.refMissed}</span>
+                <span className="melody-match-key melody-match-key-att">Attempt extra {matchStats.attExtra}</span>
+              </div>
+            </div>
+          )}
+          <div className="melody-analysis-lines">
+            {analysis.summaryLines.map((line, idx) => (
+              <div key={idx} className="melody-analysis-line">{line}</div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="graph-container">
         <div className="graph-left">

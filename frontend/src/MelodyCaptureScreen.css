@@ -9,6 +9,15 @@
   background: linear-gradient(180deg, rgba(56, 189, 248, 0.05), transparent);
 }
 
+.melody-tab-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 4px;
+  padding-right: 8px;
+  border-right: 1px solid #202020;
+}
+
 .melody-status-chip {
   font-size: 0.72rem;
   color: #6b7280;
@@ -21,5 +30,129 @@
   color: #fca5a5;
   border-color: #7f1d1d;
   background: rgba(127, 29, 29, 0.2);
+}
+
+.melody-analysis-panel {
+  flex-shrink: 0;
+  padding: 10px 24px 12px;
+  border-bottom: 1px solid #151515;
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.07), transparent);
+}
+
+.melody-analysis-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #818cf8;
+  text-transform: uppercase;
+}
+
+.melody-analysis-scores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.melody-confidence-row {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 10px;
+  border: 1px solid #2a2a36;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.45);
+}
+
+.melody-confidence-label {
+  font-size: 0.72rem;
+  color: #9ca3af;
+}
+
+.melody-confidence-value {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #e5e7eb;
+}
+
+.melody-score-chip {
+  font-size: 0.76rem;
+  color: #c7d2fe;
+  border: 1px solid #2f355f;
+  border-radius: 999px;
+  padding: 3px 10px;
+  background: rgba(49, 46, 129, 0.2);
+}
+
+.melody-match-chart-wrap {
+  margin-top: 9px;
+}
+
+.melody-match-chart {
+  width: min(620px, 100%);
+  height: 9px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #1b1b24;
+  border: 1px solid #2b2b3a;
+  display: flex;
+}
+
+.melody-match-seg {
+  height: 100%;
+}
+
+.melody-match-seg-ok {
+  background: linear-gradient(90deg, #34d399, #10b981);
+}
+
+.melody-match-seg-ref {
+  background: linear-gradient(90deg, #f59e0b, #d97706);
+}
+
+.melody-match-seg-att {
+  background: linear-gradient(90deg, #f87171, #dc2626);
+}
+
+.melody-match-legend {
+  margin-top: 7px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.melody-match-key {
+  font-size: 0.72rem;
+  border-radius: 999px;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+}
+
+.melody-match-key-ok {
+  color: #86efac;
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.melody-match-key-ref {
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.45);
+}
+
+.melody-match-key-att {
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.45);
+}
+
+.melody-analysis-lines {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.melody-analysis-line {
+  font-size: 0.78rem;
+  color: #9ca3af;
 }
 
