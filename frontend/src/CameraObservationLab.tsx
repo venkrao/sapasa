@@ -90,6 +90,8 @@ export default function CameraObservationLab({ onHome, embedded = false, embedde
   const [observation, setObservation] = useState<string | null>(null)
   const [baselineProgress, setBaselineProgress] = useState(0)
   const [loadError, setLoadError] = useState<string | null>(null)
+  /** Toggle purple mouth landmark outline on the canvas (metrics unchanged). */
+  const [showMouthOutline, setShowMouthOutline] = useState(true)
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -132,7 +134,8 @@ export default function CameraObservationLab({ onHome, embedded = false, embedde
     h: number,
     poseLms: any[],
     faceLms: any[],
-    level: ShoulderLevel | null
+    level: ShoulderLevel | null,
+    drawMouthOutline: boolean
   ) {
     // clearRect and video draw are done by the caller before this function.
     // x is mirrored programmatically (1-x) because CSS transform is removed —
@@ -198,8 +201,8 @@ export default function CameraObservationLab({ onHome, embedded = false, embedde
       }
     }
 
-    // Mouth outline
-    if (faceLms.length > 291) {
+    // Mouth outline (optional overlay — face landmarks still drive metrics when hidden)
+    if (drawMouthOutline && faceLms.length > 291) {
       const outerMouth = [61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291, 375, 321, 405, 314, 17, 84, 181, 91, 146]
       ctx.beginPath()
       let started = false
@@ -363,7 +366,7 @@ export default function CameraObservationLab({ onHome, embedded = false, embedde
       ctx.scale(-1, 1)
       ctx.drawImage(video, 0, 0, w, h)
       ctx.restore()
-      drawFrame(ctx, w, h, poseLms, faceLms, level)
+      drawFrame(ctx, w, h, poseLms, faceLms, level, showMouthOutline)
     }
 
     animFrameRef.current = requestAnimationFrame(loopRef.current!)
@@ -483,6 +486,20 @@ export default function CameraObservationLab({ onHome, embedded = false, embedde
     }
   }, [recordState])
 
+  /** Same sampling window as startup — lets the user recalibrate posture reference mid-session. */
+  const establishBaseline = useCallback(() => {
+    if (phase !== 'active') return
+    baselineRef.current = null
+    baselineSamplesRef.current = []
+    baselineStartRef.current = Date.now()
+    elevWindowRef.current = []
+    phraseFramesRef.current = []
+    setObservation(null)
+    setBaselineProgress(0)
+    recordStateRef.current = 'baseline'
+    setRecordState('baseline')
+  }, [phase])
+
   // ── Derived display values ────────────────────────────────────────────────────
 
   const currentLevel     = shoulderLevel(metrics?.shoulderSmoothed ?? null)
@@ -556,6 +573,39 @@ export default function CameraObservationLab({ onHome, embedded = false, embedde
             <span className={`cam-badge ${metrics?.faceVisible ? 'cam-badge-ok' : 'cam-badge-warn'}`}>
               {metrics?.faceVisible ? '✓ Face' : '⚠ Face'}
             </span>
+            <button
+              type="button"
+              className={'camera-mouth-outline-toggle' + (showMouthOutline ? ' camera-mouth-outline-toggle-on' : '')}
+              onClick={() => setShowMouthOutline(v => !v)}
+              aria-pressed={showMouthOutline}
+              aria-label={
+                showMouthOutline
+                  ? 'Mouth outline overlay on — click to hide lip contour'
+                  : 'Mouth outline overlay off — click to show lip contour'
+              }
+              title={showMouthOutline ? 'Hide purple mouth outline on video' : 'Show purple mouth outline on video'}
+            >
+              <span className="camera-mouth-outline-toggle-label">Outline</span>
+              <span className="camera-mouth-outline-toggle-pill">{showMouthOutline ? 'On' : 'Off'}</span>
+            </button>
+            <button
+              type="button"
+              className="camera-baseline-btn"
+              onClick={establishBaseline}
+              disabled={recordState === 'baseline'}
+              title={
+                recordState === 'baseline'
+                  ? 'Baseline capture in progress…'
+                  : 'Re-record resting shoulder & head reference (~3 seconds), same as when the camera starts'
+              }
+              aria-label={
+                recordState === 'baseline'
+                  ? 'Establishing baseline — please wait'
+                  : 'Establish baseline again — recalibrate shoulder reference'
+              }
+            >
+              Baseline
+            </button>
           </div>
         </div>
 
@@ -683,6 +733,39 @@ export default function CameraObservationLab({ onHome, embedded = false, embedde
               <span className={`cam-badge ${metrics?.faceVisible ? 'cam-badge-ok' : 'cam-badge-warn'}`}>
                 {metrics?.faceVisible ? '✓ Face visible' : '⚠ Face not visible'}
               </span>
+              <button
+                type="button"
+                className={'camera-mouth-outline-toggle' + (showMouthOutline ? ' camera-mouth-outline-toggle-on' : '')}
+                onClick={() => setShowMouthOutline(v => !v)}
+                aria-pressed={showMouthOutline}
+                aria-label={
+                  showMouthOutline
+                    ? 'Mouth outline overlay on — click to hide lip contour'
+                    : 'Mouth outline overlay off — click to show lip contour'
+                }
+                title={showMouthOutline ? 'Hide purple mouth outline on video' : 'Show purple mouth outline on video'}
+              >
+                <span className="camera-mouth-outline-toggle-label">Outline</span>
+                <span className="camera-mouth-outline-toggle-pill">{showMouthOutline ? 'On' : 'Off'}</span>
+              </button>
+              <button
+                type="button"
+                className="camera-baseline-btn"
+                onClick={establishBaseline}
+                disabled={recordState === 'baseline'}
+                title={
+                  recordState === 'baseline'
+                    ? 'Baseline capture in progress…'
+                    : 'Re-record resting shoulder & head reference (~3 seconds), same as when the camera starts'
+                }
+                aria-label={
+                  recordState === 'baseline'
+                    ? 'Establishing baseline — please wait'
+                    : 'Establish baseline again — recalibrate shoulder reference'
+                }
+              >
+                Baseline
+              </button>
             </div>
             <p className="camera-setup-tip">
               Face the camera with your face and both shoulders clearly in frame. Good lighting helps accuracy.
