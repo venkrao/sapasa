@@ -1,0 +1,25 @@
+.melody-capture-toolbar {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border-bottom: 1px solid #141414;
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.05), transparent);
+}
+
+.melody-status-chip {
+  font-size: 0.72rem;
+  color: #6b7280;
+  border: 1px solid #242424;
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+
+.melody-status-error {
+  color: #fca5a5;
+  border-color: #7f1d1d;
+  background: rgba(127, 29, 29, 0.2);
+}
+

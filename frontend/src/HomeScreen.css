@@ -14,7 +14,7 @@
 .home-card-grid {
   width: min(1300px, 92vw);
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 18px;
 }
 
@@ -89,6 +89,15 @@
 
 .home-card-camera:hover {
   border-color: rgba(251,191,36,0.2);
+}
+
+.home-card-melody {
+  background: linear-gradient(180deg, rgba(56,189,248,0.08), rgba(56,189,248,0.02));
+  border-color: rgba(56,189,248,0.14);
+}
+
+.home-card-melody:hover {
+  border-color: rgba(56,189,248,0.3);
 }
 
 .home-hint {

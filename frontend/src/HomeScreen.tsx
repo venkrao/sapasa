@@ -2,13 +2,21 @@ import './HomeScreen.css'
 
 type Props = {
   onChoosePitch: () => void
+  onChooseMelody: () => void
   onChooseEar: () => void
   onChooseOrgan: () => void
   onChooseConsonant: () => void
   onChooseCamera: () => void
 }
 
-export default function HomeScreen({ onChoosePitch, onChooseEar, onChooseOrgan, onChooseConsonant, onChooseCamera }: Props) {
+export default function HomeScreen({
+  onChoosePitch,
+  onChooseMelody,
+  onChooseEar,
+  onChooseOrgan,
+  onChooseConsonant,
+  onChooseCamera,
+}: Props) {
   return (
     <div className="app home-screen">
       <header className="header">
@@ -29,6 +37,19 @@ export default function HomeScreen({ onChoosePitch, onChooseEar, onChooseOrgan, 
             <div className="home-card-title">Carnatic Training</div>
             <div className="home-card-desc">
               Sing Carnatic phrases and varisai exercises with live pitch tracking and swara guidance.
+            </div>
+            <div className="home-card-cta">Open</div>
+          </button>
+
+          <button
+            type="button"
+            className="home-card home-card-melody"
+            onClick={onChooseMelody}
+            aria-label="Open melody capture module"
+          >
+            <div className="home-card-title">Melody Capture</div>
+            <div className="home-card-desc">
+              Capture vocals-only melodies and replay note timing on piano keys.
             </div>
             <div className="home-card-cta">Open</div>
           </button>
