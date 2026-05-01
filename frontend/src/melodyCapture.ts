@@ -65,9 +65,19 @@ export type MelodyExtractConfig = {
   octaveStabilize?: boolean
   /** Rolling window of prior raw Hz samples used as octave reference (median). */
   octaveStabilizeWindow?: number
+  /** Candidate octave folds used while stabilizing each frame. */
+  octaveCandidateFactors?: number[]
+  /** Consecutive voiced frames required before accepting a true octave jump. */
+  octaveJumpHoldFrames?: number
+  /** Threshold for considering a frame-level move as an octave jump. */
+  octaveJumpCents?: number
+  /** Fix short isolated note events that are octave outliers to their neighbors. */
+  postNoteOctaveCorrect?: boolean
+  postNoteMaxDurMs?: number
+  postNoteNeighborCents?: number
 }
 
-export type MelodyProcessingMode = 'raw' | 'piano_friendly' | 'ultra_aggressive'
+export type MelodyProcessingMode = 'raw' | 'piano_friendly' | 'ultra_aggressive' | 'anti_octave_aggressive'
 
 const RAW_MELODY_EXTRACT_CONFIG: MelodyExtractConfig = {
   minNoteMs: 55,
@@ -98,6 +108,31 @@ const ULTRA_AGGRESSIVE_MELODY_EXTRACT_CONFIG: MelodyExtractConfig = {
   ultraAggressive: true,
   octaveStabilize: true,
   octaveStabilizeWindow: 5,
+  octaveCandidateFactors: [0.5, 1, 2],
+  octaveJumpHoldFrames: 2,
+  octaveJumpCents: 930,
+}
+
+const ANTI_OCTAVE_AGGRESSIVE_MELODY_EXTRACT_CONFIG: MelodyExtractConfig = {
+  minNoteMs: 22,
+  endSilenceMs: 40,
+  minFreqHz: 80,
+  maxFreqHz: 1200,
+  splitEnterCents: 24,
+  splitExitCents: 12,
+  splitMinStableMs: 20,
+  smoothingWindow: 3,
+  mergeMaxGapMs: 0,
+  mergeMaxCents: 0,
+  ultraAggressive: true,
+  octaveStabilize: true,
+  octaveStabilizeWindow: 7,
+  octaveCandidateFactors: [0.25, 0.5, 1, 2, 4],
+  octaveJumpHoldFrames: 5,
+  octaveJumpCents: 900,
+  postNoteOctaveCorrect: true,
+  postNoteMaxDurMs: 240,
+  postNoteNeighborCents: 80,
 }
 
 export const DEFAULT_MELODY_EXTRACT_CONFIG: MelodyExtractConfig = {
@@ -114,11 +149,18 @@ export const DEFAULT_MELODY_EXTRACT_CONFIG: MelodyExtractConfig = {
   mergeMaxCents: 42,
   octaveStabilize: true,
   octaveStabilizeWindow: 5,
+  octaveCandidateFactors: [0.5, 1, 2],
+  octaveJumpHoldFrames: 2,
+  octaveJumpCents: 930,
+  postNoteOctaveCorrect: true,
+  postNoteMaxDurMs: 180,
+  postNoteNeighborCents: 70,
 }
 
 export function getExtractConfigForMode(mode: MelodyProcessingMode): MelodyExtractConfig {
   if (mode === 'raw') return RAW_MELODY_EXTRACT_CONFIG
   if (mode === 'ultra_aggressive') return ULTRA_AGGRESSIVE_MELODY_EXTRACT_CONFIG
+  if (mode === 'anti_octave_aggressive') return ANTI_OCTAVE_AGGRESSIVE_MELODY_EXTRACT_CONFIG
   return DEFAULT_MELODY_EXTRACT_CONFIG
 }
 
@@ -151,13 +193,18 @@ function centsBetweenHz(aHz: number, bHz: number): number {
 }
 
 /** Hz values YIN might report instead of true f0 when it locks onto an octave harmonic. */
-function octaveFoldCandidates(hz: number, minHz: number, maxHz: number): number[] {
+function octaveFoldCandidates(
+  hz: number,
+  minHz: number,
+  maxHz: number,
+  factors: ReadonlyArray<number>,
+): number[] {
   const set = new Set<number>()
-  for (const factor of [0.5, 1, 2] as const) {
+  for (const factor of factors) {
     const v = hz * factor
     if (v >= minHz && v <= maxHz) set.add(v)
   }
-  return [...set]
+  return [...set].sort((a, b) => a - b)
 }
 
 /**
@@ -169,17 +216,48 @@ export function stabilizeMelodyOctaves(
   minHz: number,
   maxHz: number,
   windowSize: number,
+  candidateFactors: ReadonlyArray<number> = [0.5, 1, 2],
+  jumpHoldFrames = 2,
+  jumpCents = 930,
 ): MelodyFrame[] {
   const hist: number[] = []
   const w = Math.max(1, Math.floor(windowSize))
+  const needJumpFrames = Math.max(1, Math.floor(jumpHoldFrames))
+  let pendingJumpHz: number | null = null
+  let pendingJumpFrames = 0
+  let lastStableHz: number | null = null
   return frames.map(f => {
     if (f.freq == null) return { ...f }
     const raw = f.freq
-    const refSnap = hist.length === 0 ? raw : median(hist)
-    const candidates = octaveFoldCandidates(raw, minHz, maxHz)
-    const chosen = candidates.reduce((best, c) =>
+    const refSnap = lastStableHz ?? (hist.length === 0 ? raw : median(hist))
+    const candidates = octaveFoldCandidates(raw, minHz, maxHz, candidateFactors)
+    const best = candidates.reduce((best, c) =>
       centsBetweenHz(c, refSnap) < centsBetweenHz(best, refSnap) ? c : best,
     candidates[0])
+    let chosen = best
+
+    const isOctaveJump = centsBetweenHz(best, refSnap) >= jumpCents
+    if (isOctaveJump) {
+      const fallback = candidates
+        .filter(c => centsBetweenHz(c, refSnap) < jumpCents)
+        .sort((a, b) => centsBetweenHz(a, refSnap) - centsBetweenHz(b, refSnap))[0]
+      const jumpTarget = best
+      if (pendingJumpHz != null && centsBetweenHz(pendingJumpHz, jumpTarget) < 40) {
+        pendingJumpFrames += 1
+      } else {
+        pendingJumpHz = jumpTarget
+        pendingJumpFrames = 1
+      }
+      const allowJump = pendingJumpFrames >= needJumpFrames
+      chosen = allowJump ? jumpTarget : (fallback ?? refSnap)
+      if (allowJump) {
+        pendingJumpHz = null
+        pendingJumpFrames = 0
+      }
+    } else {
+      pendingJumpHz = null
+      pendingJumpFrames = 0
+    }
     // Marginal YIN confidence often correlates with harmonic ambiguity — avoid shifting the median with those samples.
     const trustHist =
       f.confidence == null || f.confidence >= 0.88
@@ -187,8 +265,54 @@ export function stabilizeMelodyOctaves(
       hist.push(raw)
       while (hist.length > w) hist.shift()
     }
+    lastStableHz = chosen
     return { ...f, freq: chosen }
   })
+}
+
+function maybeFoldOctaveToNeighbors(
+  targetHz: number,
+  leftHz: number,
+  rightHz: number,
+  minHz: number,
+  maxHz: number,
+): number {
+  const cands = octaveFoldCandidates(targetHz, minHz, maxHz, [0.25, 0.5, 1, 2, 4])
+  let best = targetHz
+  let bestCost = Number.POSITIVE_INFINITY
+  for (const c of cands) {
+    const cost = centsBetweenHz(c, leftHz) + centsBetweenHz(c, rightHz)
+    if (cost < bestCost) {
+      bestCost = cost
+      best = c
+    }
+  }
+  return best
+}
+
+function fixShortOctaveOutlierNotes(events: MelodyNoteEvent[], cfg: MelodyExtractConfig): MelodyNoteEvent[] {
+  if (!cfg.postNoteOctaveCorrect || events.length < 3) return events
+  const maxDur = cfg.postNoteMaxDurMs ?? 220
+  const neighborTol = cfg.postNoteNeighborCents ?? 80
+  const out = events.map(ev => ({ ...ev }))
+  for (let i = 1; i < out.length - 1; i++) {
+    const prev = out[i - 1]
+    const cur = out[i]
+    const next = out[i + 1]
+    if (cur.durMs > maxDur) continue
+    if (centsBetweenHz(prev.freqHz, next.freqHz) > neighborTol) continue
+    const folded = maybeFoldOctaveToNeighbors(cur.freqHz, prev.freqHz, next.freqHz, cfg.minFreqHz, cfg.maxFreqHz)
+    const toPrev = centsBetweenHz(folded, prev.freqHz)
+    const toNext = centsBetweenHz(folded, next.freqHz)
+    const curToPrev = centsBetweenHz(cur.freqHz, prev.freqHz)
+    const curToNext = centsBetweenHz(cur.freqHz, next.freqHz)
+    const isBigImprovement = toPrev + toNext + 120 < curToPrev + curToNext
+    if (isBigImprovement) {
+      cur.freqHz = folded
+      cur.midi = hzToMidi(folded)
+    }
+  }
+  return out
 }
 
 function smoothFrames(frames: MelodyFrame[], windowSize: number): MelodyFrame[] {
@@ -253,7 +377,15 @@ export function extractMelodyNoteEvents(
   let workFrames = frames.map(f => ({ ...f }))
   if (cfg.octaveStabilize !== false) {
     const ozWin = cfg.octaveStabilizeWindow ?? 5
-    workFrames = stabilizeMelodyOctaves(workFrames, cfg.minFreqHz, cfg.maxFreqHz, ozWin)
+    workFrames = stabilizeMelodyOctaves(
+      workFrames,
+      cfg.minFreqHz,
+      cfg.maxFreqHz,
+      ozWin,
+      cfg.octaveCandidateFactors ?? [0.5, 1, 2],
+      cfg.octaveJumpHoldFrames ?? 2,
+      cfg.octaveJumpCents ?? 930,
+    )
   }
   workFrames = smoothFrames(workFrames, cfg.smoothingWindow)
   const events: MelodyNoteEvent[] = []
@@ -336,7 +468,7 @@ export function extractMelodyNoteEvents(
       }
     }
     pushUltraAggressiveRun(cluster)
-    return events.filter(e => e.durMs >= cfg.minNoteMs)
+    return fixShortOctaveOutlierNotes(events.filter(e => e.durMs >= cfg.minNoteMs), cfg)
   }
 
   for (const frame of workFrames) {
@@ -403,7 +535,7 @@ export function extractMelodyNoteEvents(
   }
 
   closeRun()
-  return mergeAdjacentEvents(events, cfg)
+  return fixShortOctaveOutlierNotes(mergeAdjacentEvents(events, cfg), cfg)
 }
 
 export function analyzeMelodyPerformance(

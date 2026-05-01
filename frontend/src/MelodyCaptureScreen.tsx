@@ -349,6 +349,7 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
           <option value="raw">Raw capture</option>
           <option value="piano_friendly">Piano-friendly</option>
           <option value="ultra_aggressive">Ultra aggressive (test)</option>
+          <option value="anti_octave_aggressive">Anti-octave aggressive</option>
         </select>
         <button
           className="listen-button"
