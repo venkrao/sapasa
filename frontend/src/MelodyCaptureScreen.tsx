@@ -33,6 +33,10 @@ function waitMs(ms: number): Promise<void> {
   return new Promise(resolve => window.setTimeout(resolve, Math.max(0, ms)))
 }
 
+function formatReplayClock(ms: number): string {
+  return `${(Math.max(0, ms) / 1000).toFixed(1)}s`
+}
+
 export default function MelodyCaptureScreen({ onHome }: Props) {
   const [connected, setConnected] = useState(false)
   const [listening, setListening] = useState(true)
@@ -42,6 +46,11 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
   const graphPushRef = useRef<((freq: number | null) => void) | null>(null)
   const audioRef = useRef<EarTrainerAudioEngine | null>(null)
   const replayRunIdRef = useRef(0)
+  const replayStartTimelineRef = useRef(0)
+  const replayStartPerfRef = useRef(0)
+  const replayTotalMsRef = useRef(0)
+  const scrubDraggingRef = useRef(false)
+  const replayRafRef = useRef(0)
 
   const [captureTarget, setCaptureTarget] = useState<'reference' | 'attempt'>('reference')
   const [status, setStatus] = useState<'idle' | 'capturing' | 'captured' | 'replaying'>('idle')
@@ -55,6 +64,7 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
   const [captureLiveCount, setCaptureLiveCount] = useState(0)
   const [tonePreset, setTonePreset] = useState<TonePreset>('piano')
   const [processingMode, setProcessingMode] = useState<MelodyProcessingMode>('piano_friendly')
+  const [replayPlayheadMs, setReplayPlayheadMs] = useState(0)
 
   const framesRef = useRef<MelodyFrame[]>([])
   const statusRef = useRef(status)
@@ -71,6 +81,13 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
   }, [])
 
   const clearCapture = useCallback(() => {
+    if (
+      !window.confirm(
+        'Clear all melody data? Reference and attempt captures will be removed. This cannot be undone.',
+      )
+    ) {
+      return
+    }
     stopReplay()
     framesRef.current = []
     setReferenceEvents([])
@@ -82,6 +99,7 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
     setCaptureLiveCount(0)
     setError(null)
     setStatus('idle')
+    setReplayPlayheadMs(0)
   }, [stopReplay])
 
   const startCapture = useCallback(() => {
@@ -121,26 +139,39 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
   const replayMelody = useCallback(async () => {
     const playEvents = captureTarget === 'reference' ? referenceEvents : attemptEvents
     if (playEvents.length === 0) return
+    const lastEndMs = playEvents.reduce((m, e) => Math.max(m, e.endMs), 0)
+    const totalEndMs = lastEndMs + 400
+    const fromMs = Math.min(Math.max(0, replayPlayheadMs), lastEndMs)
     stopReplay()
     setStatus('replaying')
     setError(null)
     const runId = ++replayRunIdRef.current
+    replayStartTimelineRef.current = fromMs
+    replayStartPerfRef.current = performance.now()
+    replayTotalMsRef.current = totalEndMs
     if (!audioRef.current) audioRef.current = new EarTrainerAudioEngine()
     await audioRef.current.ensureStarted()
 
-    const first = playEvents[0].startMs
-    let playbackMs = first
+    let playbackMs = fromMs
+    let playedAny = false
     for (const ev of playEvents) {
+      if (ev.endMs <= fromMs) continue
       if (runId !== replayRunIdRef.current) return
-      const wait = ev.startMs - playbackMs
-      await waitMs(wait)
+      const noteStart = Math.max(ev.startMs, playbackMs)
+      const delayMs = noteStart - playbackMs
+      if (delayMs > 0) await waitMs(delayMs)
       if (runId !== replayRunIdRef.current) return
-      const durSec = Math.max(0.07, Math.min(1.8, ev.durMs / 1000))
+      const durMs = ev.endMs - noteStart
+      const durSec = Math.max(0.07, Math.min(1.8, durMs / 1000))
       await audioRef.current.playNote(midiToHz(ev.midi), durSec, tonePreset)
-      playbackMs = ev.startMs
+      playbackMs = ev.endMs
+      playedAny = true
     }
-    if (runId === replayRunIdRef.current) setStatus('captured')
-  }, [attemptEvents, captureTarget, referenceEvents, stopReplay, tonePreset])
+    if (runId === replayRunIdRef.current) {
+      setStatus('captured')
+      if (playedAny) setReplayPlayheadMs(totalEndMs)
+    }
+  }, [attemptEvents, captureTarget, referenceEvents, replayPlayheadMs, stopReplay, tonePreset])
 
   const runAnalysis = useCallback(() => {
     if (referenceEvents.length === 0 || attemptEvents.length === 0) {
@@ -155,6 +186,18 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
   useEffect(() => {
     listeningRef.current = listening
   }, [listening])
+
+  useEffect(() => {
+    const endScrub = () => {
+      scrubDraggingRef.current = false
+    }
+    window.addEventListener('pointerup', endScrub)
+    window.addEventListener('pointercancel', endScrub)
+    return () => {
+      window.removeEventListener('pointerup', endScrub)
+      window.removeEventListener('pointercancel', endScrub)
+    }
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -222,6 +265,41 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
       setConnected(false)
     }
   }, [listening])
+
+  const activeReplayEvents = useMemo(
+    () => (captureTarget === 'reference' ? referenceEvents : attemptEvents),
+    [captureTarget, referenceEvents, attemptEvents],
+  )
+  const replayTotalMs = useMemo(() => {
+    if (activeReplayEvents.length === 0) return 0
+    const lastEnd = activeReplayEvents.reduce((m, e) => Math.max(m, e.endMs), 0)
+    return lastEnd + 400
+  }, [activeReplayEvents])
+
+  useEffect(() => {
+    replayTotalMsRef.current = replayTotalMs
+  }, [replayTotalMs])
+
+  useEffect(() => {
+    setReplayPlayheadMs(0)
+  }, [activeReplayEvents])
+
+  useEffect(() => {
+    if (status !== 'replaying') return
+    const anchor = replayStartTimelineRef.current
+    const t0 = replayStartPerfRef.current
+    const tick = () => {
+      if (statusRef.current !== 'replaying') return
+      if (!scrubDraggingRef.current) {
+        const total = replayTotalMsRef.current
+        const pos = Math.min(anchor + (performance.now() - t0), total)
+        setReplayPlayheadMs(pos)
+      }
+      replayRafRef.current = requestAnimationFrame(tick)
+    }
+    replayRafRef.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(replayRafRef.current)
+  }, [status])
 
   useEffect(() => {
     if (status !== 'capturing' || !captureStartedAt) return
@@ -333,7 +411,13 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
         >
           {status === 'replaying' ? 'Stop replay' : 'Replay melody'}
         </button>
-        <button className="listen-button" type="button" onClick={clearCapture} disabled={status === 'capturing'}>
+        <button
+          className="listen-button"
+          type="button"
+          onClick={clearCapture}
+          disabled={status === 'capturing'}
+          title="Erase reference and attempt captures after confirmation."
+        >
           Clear
         </button>
         <select className="shruti-select" value={tonePreset} onChange={e => setTonePreset(e.target.value as TonePreset)}>
@@ -365,6 +449,40 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
           Ref {referenceEvents.length} · Attempt {attemptEvents.length}
         </span>
         {error ? <span className="melody-status-chip melody-status-error">{error}</span> : null}
+      </div>
+
+      <div
+        className={
+          'melody-replay-scrubber' +
+          (activeReplayEvents.length === 0 ? ' melody-replay-scrubber-disabled' : '')
+        }
+        aria-label="Replay timeline"
+      >
+        <span className="melody-replay-scrubber-label">Replay</span>
+        <input
+          type="range"
+          className="melody-replay-scrubber-range"
+          min={0}
+          max={Math.max(1, replayTotalMs)}
+          step={1}
+          disabled={activeReplayEvents.length === 0}
+          value={Math.min(replayPlayheadMs, Math.max(1, replayTotalMs))}
+          title="Drag to seek; Replay melody plays from this position."
+          onPointerDown={() => {
+            scrubDraggingRef.current = true
+            if (statusRef.current === 'replaying') stopReplay()
+          }}
+          onPointerUp={() => {
+            scrubDraggingRef.current = false
+          }}
+          onPointerCancel={() => {
+            scrubDraggingRef.current = false
+          }}
+          onChange={e => setReplayPlayheadMs(Number(e.target.value))}
+        />
+        <span className="melody-replay-scrubber-time">
+          {formatReplayClock(replayPlayheadMs)} / {formatReplayClock(replayTotalMs)}
+        </span>
       </div>
 
       {analysis && (
