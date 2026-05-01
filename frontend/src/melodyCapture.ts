@@ -227,9 +227,7 @@ export type MelodyOctaveStabilizerInput = Pick<
     >
   >
 
-/**
- * Stateful octave snap (same rules as batch `stabilizeMelodyOctaves`) for live WebSocket samples.
- */
+/** Stateful octave snap shared by batch `stabilizeMelodyOctaves` (one sample per `push` call). */
 export function createMelodyOctaveStabilizer(cfg: MelodyOctaveStabilizerInput): MelodyOctaveStabilizer {
   const minHz = cfg.minFreqHz
   const maxHz = cfg.maxFreqHz
@@ -241,17 +239,17 @@ export function createMelodyOctaveStabilizer(cfg: MelodyOctaveStabilizerInput): 
   const hist: number[] = []
   let pendingJumpHz: number | null = null
   let pendingJumpFrames = 0
-  let lastStableHz: number | null = null
 
   const reset = () => {
     hist.length = 0
     pendingJumpHz = null
     pendingJumpFrames = 0
-    lastStableHz = null
   }
 
   const push = (raw: number, confidence?: number): number => {
-    const refSnap = lastStableHz ?? (hist.length === 0 ? raw : median(hist))
+    // Anchor only to recent *raw* detector readings — never to the previous chosen Hz, or a brief
+    // subharmonic (octave-low) lock can persist for the whole phrase.
+    const refSnap = hist.length === 0 ? raw : median(hist)
     const candidates = octaveFoldCandidates(raw, minHz, maxHz, candidateFactors)
     const best = candidates.reduce((best, c) =>
       centsBetweenHz(c, refSnap) < centsBetweenHz(best, refSnap) ? c : best,
@@ -286,7 +284,6 @@ export function createMelodyOctaveStabilizer(cfg: MelodyOctaveStabilizerInput): 
       hist.push(raw)
       while (hist.length > w) hist.shift()
     }
-    lastStableHz = chosen
     return chosen
   }
 
