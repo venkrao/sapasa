@@ -4,9 +4,10 @@ import { SA_HZ } from './swaras'
 import { EarTrainerAudioEngine, type TonePreset } from './audio/earTrainerAudioEngine'
 import {
   analyzeMelodyPerformance,
-  DEFAULT_MELODY_EXTRACT_CONFIG,
   extractMelodyNoteEvents,
+  getExtractConfigForMode,
   midiToHz,
+  type MelodyProcessingMode,
   type MelodyFrame,
   type MelodyNoteEvent,
   type PerformanceAnalysis,
@@ -44,7 +45,9 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
   const [analysis, setAnalysis] = useState<PerformanceAnalysis | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [captureElapsedMs, setCaptureElapsedMs] = useState(0)
+  const [captureLiveCount, setCaptureLiveCount] = useState(0)
   const [tonePreset, setTonePreset] = useState<TonePreset>('piano')
+  const [processingMode, setProcessingMode] = useState<MelodyProcessingMode>('piano_friendly')
 
   const framesRef = useRef<MelodyFrame[]>([])
   const statusRef = useRef(status)
@@ -69,6 +72,7 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
     setCaptureStartedAt(null)
     setCaptureStoppedAt(null)
     setCaptureElapsedMs(0)
+    setCaptureLiveCount(0)
     setError(null)
     setStatus('idle')
   }, [stopReplay])
@@ -86,6 +90,7 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
     setCaptureStartedAt(now)
     setCaptureStoppedAt(null)
     setCaptureElapsedMs(0)
+    setCaptureLiveCount(0)
     setStatus('capturing')
   }, [captureTarget, connected, stopReplay])
 
@@ -95,7 +100,7 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
     const captured = [...framesRef.current]
     setCaptureStoppedAt(stoppedAt)
     setCaptureElapsedMs(captureStartedAt ? stoppedAt - captureStartedAt : 0)
-    const extracted = extractMelodyNoteEvents(captured, DEFAULT_MELODY_EXTRACT_CONFIG)
+    const extracted = extractMelodyNoteEvents(captured, getExtractConfigForMode(processingMode))
     if (captureTarget === 'reference') setReferenceEvents(extracted)
     else setAttemptEvents(extracted)
     setStatus('captured')
@@ -104,7 +109,7 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
         ? 'No stable notes captured. Try vocals-only source and slightly louder vocal signal.'
         : null,
     )
-  }, [captureStartedAt, captureTarget])
+  }, [captureStartedAt, captureTarget, processingMode])
 
   const replayMelody = useCallback(async () => {
     const playEvents = captureTarget === 'reference' ? referenceEvents : attemptEvents
@@ -209,9 +214,14 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
     if (status !== 'capturing' || !captureStartedAt) return
     const id = window.setInterval(() => {
       setCaptureElapsedMs(Date.now() - captureStartedAt)
+      const rough = extractMelodyNoteEvents(
+        framesRef.current,
+        getExtractConfigForMode(processingMode),
+      )
+      setCaptureLiveCount(rough.length)
     }, 120)
     return () => window.clearInterval(id)
-  }, [status, captureStartedAt])
+  }, [status, captureStartedAt, processingMode])
 
   function toggleListening() {
     const next = !listening
@@ -226,13 +236,24 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
   }
 
   const captureSummary = useMemo(() => {
-    if (status === 'capturing') return `Capturing... ${(captureElapsedMs / 1000).toFixed(1)}s`
+    if (status === 'capturing') {
+      return `Capturing... ${(captureElapsedMs / 1000).toFixed(1)}s · ${captureLiveCount} notes`
+    }
     const selectedEvents = captureTarget === 'reference' ? referenceEvents : attemptEvents
     if (selectedEvents.length === 0 || captureStartedAt == null || captureStoppedAt == null) {
       return captureTarget === 'reference' ? 'No reference capture yet' : 'No attempt capture yet'
     }
     return `${selectedEvents.length} notes · ${((captureStoppedAt - captureStartedAt) / 1000).toFixed(1)}s`
-  }, [status, captureElapsedMs, captureTarget, referenceEvents, attemptEvents, captureStartedAt, captureStoppedAt])
+  }, [
+    status,
+    captureElapsedMs,
+    captureLiveCount,
+    captureTarget,
+    referenceEvents,
+    attemptEvents,
+    captureStartedAt,
+    captureStoppedAt,
+  ])
 
   const matchStats = useMemo(() => {
     if (!analysis) return null
@@ -305,6 +326,16 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
         <select className="shruti-select" value={tonePreset} onChange={e => setTonePreset(e.target.value as TonePreset)}>
           <option value="piano">Piano</option>
           <option value="sine">Sine</option>
+        </select>
+        <select
+          className="shruti-select"
+          value={processingMode}
+          onChange={e => setProcessingMode(e.target.value as MelodyProcessingMode)}
+          title="Capture cleanup profile"
+        >
+          <option value="raw">Raw capture</option>
+          <option value="piano_friendly">Piano-friendly</option>
+          <option value="ultra_aggressive">Ultra aggressive (test)</option>
         </select>
         <button
           className="listen-button"

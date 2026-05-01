@@ -44,19 +44,67 @@ export type MelodyExtractConfig = {
    * If pitch moves by this many cents and stays there for a short window,
    * split into a new note even without silence.
    */
-  splitCentsThreshold: number
+  splitEnterCents: number
+  /** Must come back below this to cancel pending split (hysteresis). */
+  splitExitCents: number
   /** Minimum dwell time at new pitch center before committing a split. */
   splitMinStableMs: number
+  /** Median smoothing window over voiced frequencies (frames). */
+  smoothingWindow: number
+  /** Merge adjacent near-identical notes with very short gap. */
+  mergeMaxGapMs: number
+  mergeMaxCents: number
+  /** Test mode: split very aggressively on pitch movement and short holds. */
+  ultraAggressive?: boolean
 }
 
-export const DEFAULT_MELODY_EXTRACT_CONFIG: MelodyExtractConfig = {
-  // Aggressive capture defaults (can tune up later if over-segmenting).
+export type MelodyProcessingMode = 'raw' | 'piano_friendly' | 'ultra_aggressive'
+
+const RAW_MELODY_EXTRACT_CONFIG: MelodyExtractConfig = {
   minNoteMs: 55,
   endSilenceMs: 90,
   minFreqHz: 80,
   maxFreqHz: 1200,
-  splitCentsThreshold: 75,
+  splitEnterCents: 75,
+  splitExitCents: 75,
   splitMinStableMs: 60,
+  smoothingWindow: 1,
+  mergeMaxGapMs: 0,
+  mergeMaxCents: 0,
+}
+
+const ULTRA_AGGRESSIVE_MELODY_EXTRACT_CONFIG: MelodyExtractConfig = {
+  minNoteMs: 24,
+  endSilenceMs: 45,
+  minFreqHz: 80,
+  maxFreqHz: 1200,
+  splitEnterCents: 26,
+  splitExitCents: 14,
+  splitMinStableMs: 22,
+  smoothingWindow: 3,
+  mergeMaxGapMs: 0,
+  mergeMaxCents: 0,
+  ultraAggressive: true,
+}
+
+export const DEFAULT_MELODY_EXTRACT_CONFIG: MelodyExtractConfig = {
+  // Phase-A tuned defaults for piano-like replay.
+  minNoteMs: 60,
+  endSilenceMs: 95,
+  minFreqHz: 80,
+  maxFreqHz: 1200,
+  splitEnterCents: 88,
+  splitExitCents: 58,
+  splitMinStableMs: 70,
+  smoothingWindow: 5,
+  mergeMaxGapMs: 65,
+  mergeMaxCents: 42,
+}
+
+export function getExtractConfigForMode(mode: MelodyProcessingMode): MelodyExtractConfig {
+  if (mode === 'raw') return RAW_MELODY_EXTRACT_CONFIG
+  if (mode === 'ultra_aggressive') return ULTRA_AGGRESSIVE_MELODY_EXTRACT_CONFIG
+  return DEFAULT_MELODY_EXTRACT_CONFIG
 }
 
 function median(values: number[]): number {
@@ -87,11 +135,66 @@ function centsBetweenHz(aHz: number, bHz: number): number {
   return Math.abs(1200 * Math.log2(aHz / bHz))
 }
 
+function smoothFrames(frames: MelodyFrame[], windowSize: number): MelodyFrame[] {
+  if (windowSize <= 1 || frames.length <= 2) return frames
+  const voicedIdx: number[] = []
+  const voicedHz: number[] = []
+  frames.forEach((f, i) => {
+    if (f.freq != null) {
+      voicedIdx.push(i)
+      voicedHz.push(f.freq)
+    }
+  })
+  if (voicedHz.length <= 2) return frames
+
+  const half = Math.floor(windowSize / 2)
+  const smoothedHz = voicedHz.map((_, i) => {
+    const lo = Math.max(0, i - half)
+    const hi = Math.min(voicedHz.length - 1, i + half)
+    return median(voicedHz.slice(lo, hi + 1))
+  })
+  const out = frames.map(f => ({ ...f }))
+  for (let i = 0; i < voicedIdx.length; i++) out[voicedIdx[i]].freq = smoothedHz[i]
+  return out
+}
+
+function mergeAdjacentEvents(events: MelodyNoteEvent[], cfg: MelodyExtractConfig): MelodyNoteEvent[] {
+  if (events.length <= 1 || cfg.mergeMaxGapMs <= 0) return events
+  const merged: MelodyNoteEvent[] = []
+  for (const ev of events) {
+    const prev = merged[merged.length - 1]
+    if (!prev) {
+      merged.push({ ...ev })
+      continue
+    }
+    const gapMs = ev.startMs - prev.endMs
+    const cents = centsBetweenHz(ev.freqHz, prev.freqHz)
+    if (gapMs <= cfg.mergeMaxGapMs && cents <= cfg.mergeMaxCents) {
+      const spanStart = prev.startMs
+      const spanEnd = Math.max(prev.endMs, ev.endMs)
+      const weightedHz =
+        (prev.freqHz * prev.durMs + ev.freqHz * ev.durMs) / Math.max(1, prev.durMs + ev.durMs)
+      const durMs = spanEnd - spanStart
+      merged[merged.length - 1] = {
+        ...prev,
+        endMs: spanEnd,
+        durMs,
+        freqHz: weightedHz,
+        midi: hzToMidi(weightedHz),
+      }
+    } else {
+      merged.push({ ...ev })
+    }
+  }
+  return merged
+}
+
 export function extractMelodyNoteEvents(
   frames: MelodyFrame[],
   cfg: MelodyExtractConfig = DEFAULT_MELODY_EXTRACT_CONFIG,
 ): MelodyNoteEvent[] {
   if (frames.length === 0) return []
+  const workFrames = smoothFrames(frames, cfg.smoothingWindow)
   const events: MelodyNoteEvent[] = []
 
   let runStartT: number | null = null
@@ -133,7 +236,49 @@ export function extractMelodyNoteEvents(
     resetPendingSplit()
   }
 
-  for (const frame of frames) {
+  const pushUltraAggressiveRun = (cluster: MelodyFrame[]) => {
+    if (cluster.length === 0) return
+    const startT = cluster[0].tMs
+    const endT = cluster[cluster.length - 1].tMs
+    const durMs = Math.max(1, endT - startT)
+    const freqHz = median(cluster.map(f => f.freq!).filter(Boolean))
+    events.push({
+      startMs: Math.max(0, startT - baseT),
+      endMs: Math.max(0, endT - baseT),
+      durMs,
+      freqHz,
+      midi: hzToMidi(freqHz),
+      velocity: 0.72,
+    })
+  }
+
+  if (cfg.ultraAggressive) {
+    const voicedFrames = workFrames.filter(
+      f => f.freq != null && f.freq >= cfg.minFreqHz && f.freq <= cfg.maxFreqHz,
+    )
+    if (voicedFrames.length === 0) return []
+    let cluster: MelodyFrame[] = [voicedFrames[0]]
+    let centerHz = voicedFrames[0].freq!
+    for (let i = 1; i < voicedFrames.length; i++) {
+      const fr = voicedFrames[i]
+      const prev = voicedFrames[i - 1]
+      const gapMs = fr.tMs - prev.tMs
+      const jumpCents = centsBetweenHz(fr.freq!, centerHz)
+      const shouldSplit = gapMs > cfg.endSilenceMs || jumpCents >= cfg.splitEnterCents
+      if (shouldSplit) {
+        pushUltraAggressiveRun(cluster)
+        cluster = [fr]
+        centerHz = fr.freq!
+      } else {
+        cluster.push(fr)
+        centerHz = median(cluster.map(x => x.freq!).filter(Boolean))
+      }
+    }
+    pushUltraAggressiveRun(cluster)
+    return events.filter(e => e.durMs >= cfg.minNoteMs)
+  }
+
+  for (const frame of workFrames) {
     const voiced = frame.freq != null && frame.freq >= cfg.minFreqHz && frame.freq <= cfg.maxFreqHz
     if (voiced) {
       if (runStartT == null) runStartT = frame.tMs
@@ -145,14 +290,14 @@ export function extractMelodyNoteEvents(
         const currentCenterHz = median(voicedFreqs)
         const jumpCents = centsBetweenHz(frame.freq!, currentCenterHz)
 
-        if (jumpCents >= cfg.splitCentsThreshold) {
+        if (jumpCents >= cfg.splitEnterCents) {
           if (pendingSplitStartT == null) {
             pendingSplitStartT = frame.tMs
             pendingSplitFreqs = [frame.freq!]
           } else {
             pendingSplitFreqs.push(frame.freq!)
           }
-        } else {
+        } else if (jumpCents <= cfg.splitExitCents) {
           // Drifted back toward center: cancel pending split candidate.
           resetPendingSplit()
         }
@@ -197,7 +342,7 @@ export function extractMelodyNoteEvents(
   }
 
   closeRun()
-  return events
+  return mergeAdjacentEvents(events, cfg)
 }
 
 export function analyzeMelodyPerformance(
