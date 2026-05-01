@@ -21,12 +21,28 @@ export class EarTrainerAudioEngine {
   private active: ActiveHandle | null = null
   private piano: Piano | null = null
   private pianoLoadPromise: Promise<void> | null = null
+  /** Resolves when `playNote` finishes waiting for note duration (cleared early in `stop`). */
+  private noteTailResolve: (() => void) | null = null
+  private noteTailTimer: ReturnType<typeof setTimeout> | null = null
 
   async ensureStarted() {
     await Tone.start()
   }
 
+  private finishNoteTailWaitEarly() {
+    if (this.noteTailTimer != null) {
+      window.clearTimeout(this.noteTailTimer)
+      this.noteTailTimer = null
+    }
+    if (this.noteTailResolve != null) {
+      const r = this.noteTailResolve
+      this.noteTailResolve = null
+      r()
+    }
+  }
+
   stop() {
+    this.finishNoteTailWaitEarly()
     if (this.active) {
       window.clearTimeout(this.active.timeoutId)
       this.active.dispose()
@@ -42,21 +58,38 @@ export class EarTrainerAudioEngine {
     this.pianoLoadPromise = null
   }
 
+  /**
+   * Waits until the scheduled note duration (+ short release pad) so callers like melody replay
+   * can pace gaps correctly. Previously sine returned immediately and piano did not await samples.
+   */
   async playNote(frequencyHz: number, durationSec: number, timbre: TonePreset) {
     await this.ensureStarted()
     this.stop()
 
     const dur = Math.max(0.08, durationSec)
+    const tailPadMs =
+      timbre === 'piano'
+        ? 480
+        : 420 /* matches dispose timeouts in registerActive + small cushion */
 
     switch (timbre) {
       case 'piano':
         await this.playSalamanderJiPiano(frequencyHz, dur)
-        return
+        break
       case 'sine':
       default:
         this.playSimpleWave(frequencyHz, dur, -6)
-        return
+        break
     }
+
+    await new Promise<void>(resolve => {
+      this.noteTailResolve = resolve
+      this.noteTailTimer = window.setTimeout(() => {
+        this.noteTailTimer = null
+        this.noteTailResolve = null
+        resolve()
+      }, Math.ceil(dur * 1000 + tailPadMs))
+    })
   }
 
   async playConfirmTone(correct: boolean, basePitchHz: number) {

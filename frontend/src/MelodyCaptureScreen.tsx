@@ -162,7 +162,8 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
       if (delayMs > 0) await waitMs(delayMs)
       if (runId !== replayRunIdRef.current) return
       const durMs = ev.endMs - noteStart
-      const durSec = Math.max(0.07, Math.min(1.8, durMs / 1000))
+      // Must match extracted timeline (no artificial cap): playNote now awaits full duration.
+      const durSec = Math.max(0.05, durMs / 1000)
       await audioRef.current.playNote(midiToHz(ev.midi), durSec, tonePreset)
       playbackMs = ev.endMs
       playedAny = true
