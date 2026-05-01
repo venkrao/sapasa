@@ -171,7 +171,9 @@ export default function ExercisePanel({
         if (autoPlayCancelRef.current) break
         setAutoPlayIndex(i)
         const hz = sequenceStepHz(flatSequenceForPlayback[i], saHz)
-        await audioRef.current.playNote(hz, noteDurationSec * 0.85, tonePreset)
+        await audioRef.current.playNote(hz, noteDurationSec * 0.85, tonePreset, {
+          waitForTail: false,
+        })
         await new Promise<void>(resolve => window.setTimeout(resolve, beatMs))
       }
       // Brief 2-beat pause between loops so the restart is audible

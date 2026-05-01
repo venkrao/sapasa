@@ -3,6 +3,16 @@ import * as Tone from 'tone'
 
 export type TonePreset = 'piano' | 'sine'
 
+/** Options for {@link EarTrainerAudioEngine.playNote}. */
+export type PlayNoteOptions = {
+  /**
+   * When true (default), the returned promise settles after the scheduled note duration (+ release pad).
+   * When false, sound is scheduled and the promise resolves immediately — use when the caller already
+   * paces beats (e.g. exercise auto-play uses `setTimeout` per BPM).
+   */
+  waitForTail?: boolean
+}
+
 type ActiveHandle = {
   dispose: () => void
   timeoutId: number
@@ -59,10 +69,15 @@ export class EarTrainerAudioEngine {
   }
 
   /**
-   * Waits until the scheduled note duration (+ short release pad) so callers like melody replay
-   * can pace gaps correctly. Previously sine returned immediately and piano did not await samples.
+   * Schedules a note. By default waits until duration (+ pad) so melody replay can pace by timeline.
+   * Pass `{ waitForTail: false }` when the caller controls timing between notes (exercise auto-play).
    */
-  async playNote(frequencyHz: number, durationSec: number, timbre: TonePreset) {
+  async playNote(
+    frequencyHz: number,
+    durationSec: number,
+    timbre: TonePreset,
+    opts?: PlayNoteOptions,
+  ) {
     await this.ensureStarted()
     this.stop()
 
@@ -81,6 +96,9 @@ export class EarTrainerAudioEngine {
         this.playSimpleWave(frequencyHz, dur, -6)
         break
     }
+
+    const waitForTail = opts?.waitForTail !== false
+    if (!waitForTail) return
 
     await new Promise<void>(resolve => {
       this.noteTailResolve = resolve
