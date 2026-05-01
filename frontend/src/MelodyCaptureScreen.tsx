@@ -37,6 +37,27 @@ function formatReplayClock(ms: number): string {
   return `${(Math.max(0, ms) / 1000).toFixed(1)}s`
 }
 
+/** Wall-clock ms for the replay loop from `fromMs` (matches waitMs + playNote tail waits). */
+function melodyReplayWallMsFrom(
+  events: MelodyNoteEvent[],
+  fromMs: number,
+  tonePreset: TonePreset,
+): number {
+  const tailPad = tonePreset === 'piano' ? 480 : 420
+  let playbackMs = fromMs
+  let wall = 0
+  for (const ev of events) {
+    if (ev.endMs <= fromMs) continue
+    const noteStart = Math.max(ev.startMs, playbackMs)
+    wall += noteStart - playbackMs
+    const durMs = ev.endMs - noteStart
+    const durSec = Math.max(0.05, durMs / 1000)
+    wall += Math.ceil(durSec * 1000 + tailPad)
+    playbackMs = ev.endMs
+  }
+  return wall
+}
+
 export default function MelodyCaptureScreen({ onHome }: Props) {
   const [connected, setConnected] = useState(false)
   const [listening, setListening] = useState(true)
@@ -46,9 +67,10 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
   const graphPushRef = useRef<((freq: number | null) => void) | null>(null)
   const audioRef = useRef<EarTrainerAudioEngine | null>(null)
   const replayRunIdRef = useRef(0)
-  const replayStartTimelineRef = useRef(0)
   const replayStartPerfRef = useRef(0)
-  const replayTotalMsRef = useRef(0)
+  const replayProgMusicalStartRef = useRef(0)
+  const replayProgMusicalEndRef = useRef(0)
+  const replayProgWallMsRef = useRef(0)
   const scrubDraggingRef = useRef(false)
   const replayRafRef = useRef(0)
 
@@ -141,14 +163,17 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
     if (playEvents.length === 0) return
     const lastEndMs = playEvents.reduce((m, e) => Math.max(m, e.endMs), 0)
     const totalEndMs = lastEndMs + 400
-    const fromMs = Math.min(Math.max(0, replayPlayheadMs), lastEndMs)
+    let fromMs = Math.min(Math.max(0, replayPlayheadMs), lastEndMs)
+    // After a full run playhead sits at `totalEndMs`; clamped `fromMs === lastEndMs` skips every note.
+    if (lastEndMs > 0 && fromMs >= lastEndMs) fromMs = 0
     stopReplay()
     setStatus('replaying')
     setError(null)
     const runId = ++replayRunIdRef.current
-    replayStartTimelineRef.current = fromMs
+    replayProgMusicalStartRef.current = fromMs
+    replayProgMusicalEndRef.current = totalEndMs
+    replayProgWallMsRef.current = melodyReplayWallMsFrom(playEvents, fromMs, tonePreset)
     replayStartPerfRef.current = performance.now()
-    replayTotalMsRef.current = totalEndMs
     if (!audioRef.current) audioRef.current = new EarTrainerAudioEngine()
     await audioRef.current.ensureStarted()
 
@@ -278,22 +303,22 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
   }, [activeReplayEvents])
 
   useEffect(() => {
-    replayTotalMsRef.current = replayTotalMs
-  }, [replayTotalMs])
-
-  useEffect(() => {
     setReplayPlayheadMs(0)
   }, [activeReplayEvents])
 
   useEffect(() => {
     if (status !== 'replaying') return
-    const anchor = replayStartTimelineRef.current
     const t0 = replayStartPerfRef.current
+    const m0 = replayProgMusicalStartRef.current
+    const m1 = replayProgMusicalEndRef.current
+    const wall = replayProgWallMsRef.current
+    const span = Math.max(0, m1 - m0)
     const tick = () => {
       if (statusRef.current !== 'replaying') return
       if (!scrubDraggingRef.current) {
-        const total = replayTotalMsRef.current
-        const pos = Math.min(anchor + (performance.now() - t0), total)
+        const elapsed = performance.now() - t0
+        const frac = wall > 0 ? Math.min(1, elapsed / wall) : 1
+        const pos = m0 + frac * span
         setReplayPlayheadMs(pos)
       }
       replayRafRef.current = requestAnimationFrame(tick)
