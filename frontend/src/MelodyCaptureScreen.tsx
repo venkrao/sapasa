@@ -15,7 +15,14 @@ import {
 import './MelodyCaptureScreen.css'
 
 type Props = { onHome: () => void }
-type NoteEvent = { status: 'note'; note: string; swara: string; cents: number; freq: number }
+type NoteEvent = {
+  status: 'note'
+  note: string
+  swara: string
+  cents: number
+  freq: number
+  confidence?: number
+}
 type IdleEvent = { status: 'idle' }
 type PitchEvent = NoteEvent | IdleEvent
 
@@ -184,7 +191,13 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
           const incoming = JSON.parse(e.data) as PitchEvent
           const freq = incoming.status === 'note' ? incoming.freq : null
           graphPushRef.current?.(freq)
-          if (statusRef.current === 'capturing') framesRef.current.push({ tMs: Date.now(), freq })
+          if (statusRef.current === 'capturing') {
+            const frame: MelodyFrame = { tMs: Date.now(), freq }
+            if (incoming.status === 'note' && incoming.confidence != null) {
+              frame.confidence = incoming.confidence
+            }
+            framesRef.current.push(frame)
+          }
         } catch {
           // ignore malformed packets
         }

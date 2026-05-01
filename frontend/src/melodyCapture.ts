@@ -1,6 +1,8 @@
 export type MelodyFrame = {
   tMs: number
   freq: number | null
+  /** YIN detector confidence from backend when present (~0.85–0.99 voiced). */
+  confidence?: number
 }
 
 export type MelodyNoteEvent = {
@@ -56,6 +58,13 @@ export type MelodyExtractConfig = {
   mergeMaxCents: number
   /** Test mode: split very aggressively on pitch movement and short holds. */
   ultraAggressive?: boolean
+  /**
+   * Reduce YIN octave-doubling/halving errors by snapping each sample to {f/2,f,2f}
+   * nearest to recent raw-frequency history before smoothing/segmentation.
+   */
+  octaveStabilize?: boolean
+  /** Rolling window of prior raw Hz samples used as octave reference (median). */
+  octaveStabilizeWindow?: number
 }
 
 export type MelodyProcessingMode = 'raw' | 'piano_friendly' | 'ultra_aggressive'
@@ -71,6 +80,8 @@ const RAW_MELODY_EXTRACT_CONFIG: MelodyExtractConfig = {
   smoothingWindow: 1,
   mergeMaxGapMs: 0,
   mergeMaxCents: 0,
+  octaveStabilize: true,
+  octaveStabilizeWindow: 5,
 }
 
 const ULTRA_AGGRESSIVE_MELODY_EXTRACT_CONFIG: MelodyExtractConfig = {
@@ -85,6 +96,8 @@ const ULTRA_AGGRESSIVE_MELODY_EXTRACT_CONFIG: MelodyExtractConfig = {
   mergeMaxGapMs: 0,
   mergeMaxCents: 0,
   ultraAggressive: true,
+  octaveStabilize: true,
+  octaveStabilizeWindow: 5,
 }
 
 export const DEFAULT_MELODY_EXTRACT_CONFIG: MelodyExtractConfig = {
@@ -99,6 +112,8 @@ export const DEFAULT_MELODY_EXTRACT_CONFIG: MelodyExtractConfig = {
   smoothingWindow: 5,
   mergeMaxGapMs: 65,
   mergeMaxCents: 42,
+  octaveStabilize: true,
+  octaveStabilizeWindow: 5,
 }
 
 export function getExtractConfigForMode(mode: MelodyProcessingMode): MelodyExtractConfig {
@@ -133,6 +148,47 @@ function scoreLinear(absErr: number, best: number, worst: number): number {
 
 function centsBetweenHz(aHz: number, bHz: number): number {
   return Math.abs(1200 * Math.log2(aHz / bHz))
+}
+
+/** Hz values YIN might report instead of true f0 when it locks onto an octave harmonic. */
+function octaveFoldCandidates(hz: number, minHz: number, maxHz: number): number[] {
+  const set = new Set<number>()
+  for (const factor of [0.5, 1, 2] as const) {
+    const v = hz * factor
+    if (v >= minHz && v <= maxHz) set.add(v)
+  }
+  return [...set]
+}
+
+/**
+ * Snap each voiced sample to f/2, f, or 2f — whichever is nearest in cents to the median of the
+ * previous raw detector readings. Brief harmonic-lock spikes disagree with history and get folded.
+ */
+export function stabilizeMelodyOctaves(
+  frames: MelodyFrame[],
+  minHz: number,
+  maxHz: number,
+  windowSize: number,
+): MelodyFrame[] {
+  const hist: number[] = []
+  const w = Math.max(1, Math.floor(windowSize))
+  return frames.map(f => {
+    if (f.freq == null) return { ...f }
+    const raw = f.freq
+    const refSnap = hist.length === 0 ? raw : median(hist)
+    const candidates = octaveFoldCandidates(raw, minHz, maxHz)
+    const chosen = candidates.reduce((best, c) =>
+      centsBetweenHz(c, refSnap) < centsBetweenHz(best, refSnap) ? c : best,
+    candidates[0])
+    // Marginal YIN confidence often correlates with harmonic ambiguity — avoid shifting the median with those samples.
+    const trustHist =
+      f.confidence == null || f.confidence >= 0.88
+    if (trustHist) {
+      hist.push(raw)
+      while (hist.length > w) hist.shift()
+    }
+    return { ...f, freq: chosen }
+  })
 }
 
 function smoothFrames(frames: MelodyFrame[], windowSize: number): MelodyFrame[] {
@@ -194,7 +250,12 @@ export function extractMelodyNoteEvents(
   cfg: MelodyExtractConfig = DEFAULT_MELODY_EXTRACT_CONFIG,
 ): MelodyNoteEvent[] {
   if (frames.length === 0) return []
-  const workFrames = smoothFrames(frames, cfg.smoothingWindow)
+  let workFrames = frames.map(f => ({ ...f }))
+  if (cfg.octaveStabilize !== false) {
+    const ozWin = cfg.octaveStabilizeWindow ?? 5
+    workFrames = stabilizeMelodyOctaves(workFrames, cfg.minFreqHz, cfg.maxFreqHz, ozWin)
+  }
+  workFrames = smoothFrames(workFrames, cfg.smoothingWindow)
   const events: MelodyNoteEvent[] = []
 
   let runStartT: number | null = null

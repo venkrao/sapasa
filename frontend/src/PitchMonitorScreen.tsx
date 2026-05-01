@@ -32,7 +32,14 @@ const COACH_CLIP_SECONDS = 15
 const RECONNECT_DELAY_MS = 2000
 const AROHANAM_AVAROHANAM_EXERCISE_ID = '__arohanam_avarohanam__'
 
-type NoteEvent = { status: 'note'; note: string; swara: string; cents: number; freq: number }
+type NoteEvent = {
+  status: 'note'
+  note: string
+  swara: string
+  cents: number
+  freq: number
+  confidence?: number
+}
 type IdleEvent = { status: 'idle' }
 type PitchEvent = NoteEvent | IdleEvent
 

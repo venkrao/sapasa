@@ -151,6 +151,8 @@ def _process_audio() -> None:
                 "swara":  swara,
                 "cents":  cents_ji,
                 "freq":   round(smoothed, 1),
+                # Client-side octave stabilization uses this when harmonic-lock frames slip past gating.
+                "confidence": round(confidence, 3),
             }
         else:
             _silence_count += 1
