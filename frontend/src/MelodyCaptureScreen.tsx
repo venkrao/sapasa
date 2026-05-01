@@ -4,9 +4,11 @@ import { SA_HZ } from './swaras'
 import { EarTrainerAudioEngine, type TonePreset } from './audio/earTrainerAudioEngine'
 import {
   analyzeMelodyPerformance,
+  createMelodyOctaveStabilizer,
   extractMelodyNoteEvents,
   getExtractConfigForMode,
   midiToHz,
+  type MelodyOctaveStabilizer,
   type MelodyProcessingMode,
   type MelodyFrame,
   type MelodyNoteEvent,
@@ -57,8 +59,15 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
   const [processingMode, setProcessingMode] = useState<MelodyProcessingMode>('piano_friendly')
 
   const framesRef = useRef<MelodyFrame[]>([])
+  const graphOctaveRef = useRef<MelodyOctaveStabilizer | null>(null)
   const statusRef = useRef(status)
   useEffect(() => { statusRef.current = status }, [status])
+
+  useEffect(() => {
+    const cfg = getExtractConfigForMode(processingMode)
+    graphOctaveRef.current =
+      cfg.octaveStabilize === false ? null : createMelodyOctaveStabilizer(cfg)
+  }, [processingMode])
 
   const onGraphMount = useCallback((push: (freq: number | null) => void) => {
     graphPushRef.current = push
@@ -72,6 +81,7 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
 
   const clearCapture = useCallback(() => {
     stopReplay()
+    graphOctaveRef.current?.reset()
     framesRef.current = []
     setReferenceEvents([])
     setAttemptEvents([])
@@ -90,6 +100,7 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
       return
     }
     stopReplay()
+    graphOctaveRef.current?.reset()
     const now = Date.now()
     framesRef.current = []
     if (captureTarget === 'attempt') setAnalysis(null)
@@ -190,7 +201,11 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
         try {
           const incoming = JSON.parse(e.data) as PitchEvent
           const freq = incoming.status === 'note' ? incoming.freq : null
-          graphPushRef.current?.(freq)
+          let graphFreq = freq
+          if (freq != null && graphOctaveRef.current && incoming.status === 'note') {
+            graphFreq = graphOctaveRef.current.push(freq, incoming.confidence)
+          }
+          graphPushRef.current?.(graphFreq)
           if (statusRef.current === 'capturing') {
             const frame: MelodyFrame = { tMs: Date.now(), freq }
             if (incoming.status === 'note' && incoming.confidence != null) {

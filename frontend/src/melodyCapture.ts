@@ -207,28 +207,50 @@ function octaveFoldCandidates(
   return [...set].sort((a, b) => a - b)
 }
 
+export type MelodyOctaveStabilizer = {
+  reset: () => void
+  push: (rawHz: number, confidence?: number) => number
+}
+
+/** Subset of extract config used by the live / batch octave stabilizer. */
+export type MelodyOctaveStabilizerInput = Pick<
+  MelodyExtractConfig,
+  'minFreqHz' | 'maxFreqHz'
+> &
+  Partial<
+    Pick<
+      MelodyExtractConfig,
+      | 'octaveStabilizeWindow'
+      | 'octaveCandidateFactors'
+      | 'octaveJumpHoldFrames'
+      | 'octaveJumpCents'
+    >
+  >
+
 /**
- * Snap each voiced sample to f/2, f, or 2f — whichever is nearest in cents to the median of the
- * previous raw detector readings. Brief harmonic-lock spikes disagree with history and get folded.
+ * Stateful octave snap (same rules as batch `stabilizeMelodyOctaves`) for live WebSocket samples.
  */
-export function stabilizeMelodyOctaves(
-  frames: MelodyFrame[],
-  minHz: number,
-  maxHz: number,
-  windowSize: number,
-  candidateFactors: ReadonlyArray<number> = [0.5, 1, 2],
-  jumpHoldFrames = 2,
-  jumpCents = 930,
-): MelodyFrame[] {
+export function createMelodyOctaveStabilizer(cfg: MelodyOctaveStabilizerInput): MelodyOctaveStabilizer {
+  const minHz = cfg.minFreqHz
+  const maxHz = cfg.maxFreqHz
+  const w = Math.max(1, Math.floor(cfg.octaveStabilizeWindow ?? 5))
+  const candidateFactors = cfg.octaveCandidateFactors ?? [0.5, 1, 2]
+  const needJumpFrames = Math.max(1, Math.floor(cfg.octaveJumpHoldFrames ?? 2))
+  const jumpCents = cfg.octaveJumpCents ?? 930
+
   const hist: number[] = []
-  const w = Math.max(1, Math.floor(windowSize))
-  const needJumpFrames = Math.max(1, Math.floor(jumpHoldFrames))
   let pendingJumpHz: number | null = null
   let pendingJumpFrames = 0
   let lastStableHz: number | null = null
-  return frames.map(f => {
-    if (f.freq == null) return { ...f }
-    const raw = f.freq
+
+  const reset = () => {
+    hist.length = 0
+    pendingJumpHz = null
+    pendingJumpFrames = 0
+    lastStableHz = null
+  }
+
+  const push = (raw: number, confidence?: number): number => {
     const refSnap = lastStableHz ?? (hist.length === 0 ? raw : median(hist))
     const candidates = octaveFoldCandidates(raw, minHz, maxHz, candidateFactors)
     const best = candidates.reduce((best, c) =>
@@ -258,15 +280,43 @@ export function stabilizeMelodyOctaves(
       pendingJumpHz = null
       pendingJumpFrames = 0
     }
-    // Marginal YIN confidence often correlates with harmonic ambiguity — avoid shifting the median with those samples.
-    const trustHist =
-      f.confidence == null || f.confidence >= 0.88
+
+    const trustHist = confidence == null || confidence >= 0.88
     if (trustHist) {
       hist.push(raw)
       while (hist.length > w) hist.shift()
     }
     lastStableHz = chosen
-    return { ...f, freq: chosen }
+    return chosen
+  }
+
+  reset()
+  return { reset, push }
+}
+
+/**
+ * Snap each voiced sample to octave folds near recent raw history; suppress bogus ±octave spikes.
+ */
+export function stabilizeMelodyOctaves(
+  frames: MelodyFrame[],
+  minHz: number,
+  maxHz: number,
+  windowSize: number,
+  candidateFactors: ReadonlyArray<number> = [0.5, 1, 2],
+  jumpHoldFrames = 2,
+  jumpCents = 930,
+): MelodyFrame[] {
+  const stab = createMelodyOctaveStabilizer({
+    minFreqHz: minHz,
+    maxFreqHz: maxHz,
+    octaveStabilizeWindow: windowSize,
+    octaveCandidateFactors: [...candidateFactors],
+    octaveJumpHoldFrames: jumpHoldFrames,
+    octaveJumpCents: jumpCents,
+  })
+  return frames.map(f => {
+    if (f.freq == null) return { ...f }
+    return { ...f, freq: stab.push(f.freq, f.confidence) }
   })
 }
 
