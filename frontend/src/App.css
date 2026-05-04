@@ -241,6 +241,156 @@
   border-color: #4b5563;
 }
 
+/* Pitch monitor — trust banner, progressive disclosure */
+.practice-trust-banner {
+  flex-shrink: 0;
+  padding: 10px 24px 12px;
+  border-bottom: 1px solid #2a2418;
+  background: rgba(180, 83, 9, 0.12);
+}
+
+.practice-trust-banner-warn {
+  border-bottom-color: #78350f;
+}
+
+.practice-trust-banner-title {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #fcd34d;
+  margin-bottom: 6px;
+}
+
+.practice-trust-banner-body {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: #d6d3d1;
+  max-width: 72ch;
+}
+
+.practice-trust-details-row {
+  flex-shrink: 0;
+  padding: 4px 24px 10px;
+  border-bottom: 1px solid #141414;
+}
+
+.practice-trust-details {
+  font-size: 0.74rem;
+  color: #9ca3af;
+}
+
+.practice-trust-details > summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: #a8a29e;
+  user-select: none;
+}
+
+.practice-trust-details > summary:hover {
+  color: #d6d3d1;
+}
+
+.practice-trust-details-body {
+  margin: 8px 0 0;
+  padding-left: 12px;
+  border-left: 2px solid #334155;
+  line-height: 1.45;
+  max-width: 72ch;
+}
+
+.layout-mode-toggle {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #cbd5e1;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.layout-mode-toggle:hover {
+  border-color: #475569;
+  color: #f1f5f9;
+}
+
+.session-tools-details {
+  flex: 1 1 200px;
+  min-width: 0;
+  border: 1px solid #2d2d2d;
+  border-radius: 10px;
+  padding: 4px 10px 8px;
+  background: rgba(20, 20, 20, 0.65);
+}
+
+.session-tools-summary {
+  cursor: pointer;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #94a3b8;
+  user-select: none;
+  list-style: none;
+}
+
+.session-tools-summary::-webkit-details-marker {
+  display: none;
+}
+
+.session-tools-summary::before {
+  content: '▸ ';
+  display: inline-block;
+  transition: transform 0.12s ease;
+}
+
+.session-tools-details[open] > .session-tools-summary::before {
+  transform: rotate(90deg);
+}
+
+.session-tools-details-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 8px;
+}
+
+.tanpura-drone-details {
+  flex: 0 1 auto;
+  min-width: 0;
+  border: 1px solid #2d2618;
+  border-radius: 10px;
+  padding: 4px 10px 8px;
+  background: rgba(25, 22, 14, 0.55);
+}
+
+.tanpura-drone-summary {
+  cursor: pointer;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #d4bc7a;
+  user-select: none;
+  list-style: none;
+}
+
+.tanpura-drone-summary::-webkit-details-marker {
+  display: none;
+}
+
+.tanpura-drone-summary::before {
+  content: '▸ ';
+  display: inline-block;
+  transition: transform 0.12s ease;
+  color: #a68b3d;
+}
+
+.tanpura-drone-details[open] > .tanpura-drone-summary::before {
+  transform: rotate(90deg);
+}
+
 .tanpura-toggle {
   font-size: 0.78rem;
   font-weight: 700;

@@ -13,8 +13,18 @@ import {
   type PerformanceAnalysis,
 } from './melodyCapture'
 import './MelodyCaptureScreen.css'
+import { PRACTICE_UX } from './practiceUxCopy'
 
 type Props = { onHome: () => void }
+
+const MELODY_PROCESSING_MODES = [
+  'raw',
+  'piano_friendly',
+  'ultra_aggressive',
+  'anti_octave_aggressive',
+] as const satisfies readonly MelodyProcessingMode[]
+
+const ANALYSIS_LOW_CONFIDENCE_THRESHOLD = 0.45
 type NoteEvent = {
   status: 'note'
   note: string
@@ -60,6 +70,7 @@ function melodyReplayWallMsFrom(
 
 export default function MelodyCaptureScreen({ onHome }: Props) {
   const [connected, setConnected] = useState(false)
+  const [pitchBackendHadSession, setPitchBackendHadSession] = useState(false)
   const [listening, setListening] = useState(true)
   const listeningRef = useRef(true)
   const wsRef = useRef<WebSocket | null>(null)
@@ -126,7 +137,11 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
 
   const startCapture = useCallback(() => {
     if (!connected) {
-      setError('Not connected to pitch backend. Start python server and retry.')
+      setError(
+        pitchBackendHadSession
+          ? `${PRACTICE_UX.pitchServerReconnecting} Capture begins once connected.`
+          : PRACTICE_UX.pitchServerDisconnected,
+      )
       return
     }
     stopReplay()
@@ -139,7 +154,7 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
     setCaptureElapsedMs(0)
     setCaptureLiveCount(0)
     setStatus('capturing')
-  }, [captureTarget, connected, stopReplay])
+  }, [captureTarget, connected, pitchBackendHadSession, stopReplay])
 
   const stopCapture = useCallback(() => {
     if (statusRef.current !== 'capturing') return
@@ -251,6 +266,7 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
       ws.onopen = () => {
         if (disposed) return
         setConnected(true)
+        setPitchBackendHadSession(true)
         setError(null)
       }
 
@@ -399,6 +415,19 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
         <button className="listen-button home-nav-button" onClick={onHome} type="button">Home</button>
       </header>
 
+      {listening && !connected ? (
+        <div className="practice-trust-banner practice-trust-banner-warn" role="status">
+          <div className="practice-trust-banner-title">
+            {pitchBackendHadSession ? 'Pitch backend reconnecting' : 'Pitch backend not reachable'}
+          </div>
+          <p className="practice-trust-banner-body">
+            {pitchBackendHadSession
+              ? PRACTICE_UX.pitchServerReconnecting
+              : PRACTICE_UX.pitchServerDisconnected}
+          </p>
+        </div>
+      ) : null}
+
       <div className="melody-capture-toolbar">
         <div className="melody-tab-row">
           <button
@@ -454,12 +483,13 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
           className="shruti-select"
           value={processingMode}
           onChange={e => setProcessingMode(e.target.value as MelodyProcessingMode)}
-          title="Capture cleanup profile"
+          title={PRACTICE_UX.melodyModes[processingMode].title}
         >
-          <option value="raw">Raw capture</option>
-          <option value="piano_friendly">Piano-friendly</option>
-          <option value="ultra_aggressive">Ultra aggressive (test)</option>
-          <option value="anti_octave_aggressive">Anti-octave aggressive</option>
+          {MELODY_PROCESSING_MODES.map(mode => (
+            <option key={mode} value={mode} title={PRACTICE_UX.melodyModes[mode].title}>
+              {PRACTICE_UX.melodyModes[mode].label}
+            </option>
+          ))}
         </select>
         <button
           className="listen-button"
@@ -511,6 +541,17 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
         </span>
       </div>
 
+      <p className="melody-scrubber-hint">{PRACTICE_UX.melodyTimelineHint}</p>
+
+      {listening ? (
+        <div className="practice-trust-details-row melody-trust-details-row">
+          <details className="practice-trust-details">
+            <summary>When live pitch looks unstable</summary>
+            <p className="practice-trust-details-body">{PRACTICE_UX.pitchLimitsSummary}</p>
+          </details>
+        </div>
+      ) : null}
+
       {analysis && (
         <div className="melody-analysis-panel">
           <div className="melody-analysis-title">Performance Summary</div>
@@ -520,6 +561,9 @@ export default function MelodyCaptureScreen({ onHome }: Props) {
               {matchStats?.confidencePct ?? 0}%
             </span>
           </div>
+          {analysis.averageConfidence < ANALYSIS_LOW_CONFIDENCE_THRESHOLD ? (
+            <p className="melody-analysis-low-confidence">{PRACTICE_UX.analysisLowConfidence}</p>
+          ) : null}
           <div className="melody-analysis-scores">
             <span className="melody-score-chip">Overall {analysis.overallScore}</span>
             <span className="melody-score-chip">Pitch {analysis.pitchScore}</span>

@@ -7,13 +7,20 @@ export type TanpuraStripProps = {
   shrutiSummary: string
   /** Optional right-side cluster (e.g. listen, camera, shruti) on the same row as tanpura controls */
   sessionToolbar?: ReactNode
+  /** When true, wraps drone controls in a collapsed `<details>` (focused layout). */
+  collapseDroneControls?: boolean
 }
 
 const VOLUME_MIN = -20
 const VOLUME_MAX = 0
 const VOLUME_DEFAULT = -6
 
-export default function TanpuraStrip({ saHz, shrutiSummary, sessionToolbar }: TanpuraStripProps) {
+export default function TanpuraStrip({
+  saHz,
+  shrutiSummary,
+  sessionToolbar,
+  collapseDroneControls = false,
+}: TanpuraStripProps) {
   const engineRef = useRef<TanpuraDroneEngine | null>(null)
   const liveClearRef = useRef<number | null>(null)
   const [active, setActive] = useState(false)
@@ -65,10 +72,8 @@ export default function TanpuraStrip({ saHz, shrutiSummary, sessionToolbar }: Ta
     }, 4000)
   }, [saHz, includePa, volumeDb, shrutiSummary])
 
-  return (
-    <div className="tanpura-bar">
-      <div className="tanpura-bar-main-row">
-        <div className="tanpura-bar-inner" aria-label="Tanpura drone controls">
+  const droneControls = (
+    <div className="tanpura-bar-inner" aria-label="Tanpura drone controls">
           <button
             type="button"
             className={'tanpura-toggle ' + (active ? 'tanpura-toggle-on' : '')}
@@ -111,7 +116,20 @@ export default function TanpuraStrip({ saHz, shrutiSummary, sessionToolbar }: Ta
             />
             <span className="tanpura-vol-val">{volumeDb} dB</span>
           </label>
-        </div>
+    </div>
+  )
+
+  return (
+    <div className="tanpura-bar">
+      <div className="tanpura-bar-main-row">
+        {collapseDroneControls ? (
+          <details className="tanpura-drone-details">
+            <summary className="tanpura-drone-summary">Tanpura drone (optional)</summary>
+            {droneControls}
+          </details>
+        ) : (
+          droneControls
+        )}
         {sessionToolbar != null ? (
           <div className="pitch-session-toolbar">{sessionToolbar}</div>
         ) : null}

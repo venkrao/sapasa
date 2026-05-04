@@ -55,6 +55,20 @@
   text-align: right;
 }
 
+.melody-scrubber-hint {
+  margin: 0;
+  padding: 4px 24px 10px;
+  font-size: 0.71rem;
+  line-height: 1.45;
+  color: #64748b;
+  border-bottom: 1px solid #141414;
+  max-width: 72ch;
+}
+
+.melody-trust-details-row {
+  padding-top: 2px;
+}
+
 .melody-tab-row {
   display: inline-flex;
   align-items: center;
@@ -120,6 +134,14 @@
   font-size: 0.76rem;
   font-weight: 700;
   color: #e5e7eb;
+}
+
+.melody-analysis-low-confidence {
+  margin: 8px 0 0;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: #a8a29e;
+  max-width: 62ch;
 }
 
 .melody-score-chip {
