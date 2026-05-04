@@ -1,8 +1,19 @@
 # SaPaSa — a practice companion for singers
 
-**SaPaSa** is a desktop web app for **Carnatic vocal practice** and related skills. It runs in your browser and, for live pitch tracking, uses a small **Python audio server** that reads your microphone. Think of it as a practice room helper: you sing, and the app shows **where your pitch sits** relative to Just Intonation (JI) swarasthanas, helps you **train your ear**, work on **breath and body**, and optionally **watch posture** with your camera — all on your machine.
+**SaPaSa** is a desktop web app for **Carnatic vocal practice** and related skills. It runs in your browser and, for live pitch tracking, uses a small **Python audio server** that reads your microphone. Think of it as a practice room helper: you sing, and the app shows **where your pitch sits** relative to Just Intonation (JI) swarasthanas; **capture simple melodies** and replay them as piano-like notes; helps you **train your ear**, work on **breath and body**, and optionally **watch posture** with your camera — all on your machine.
 
 This guide is written for **music students** starting from zero with the project. You do **not** need to read code to use it.
+
+---
+
+## Features
+
+- **Carnatic Training** — Live microphone pitch vs Just Intonation swaras, scrolling graph, optional tanpura drone, raga exercises with expected-swara guidance, optional camera overlay and hold markers.
+- **Melody Capture** — Record vocals-only melodies via the same pitch stream; replay captured timing on piano or sine keys, scrub the timeline, compare reference vs attempt with a simple performance summary.
+- **Ear Training** — Swara keyboard and quiz in JI from a chosen Sa (runs entirely in the browser).
+- **Organ Training** — Breath and vocal-organ drills with optional camera metrics and a progress graph.
+- **Consonant Training** — Structured consonant drills for singers (guidance-first).
+- **Camera Lab** — Full-screen posture and alignment observation with live metrics (browser-only processing).
 
 ---
 
@@ -13,7 +24,7 @@ This guide is written for **music students** starting from zero with the project
 | **Computer** | macOS, Windows, or Linux |
 | **Browser** | A recent Chrome, Edge, or Firefox (Safari often works; use Chromium-based if in doubt) |
 | **Microphone** | Built-in or external — place yourself at a comfortable distance |
-| **Python** | 3.10 or newer (only for **Carnatic Training** and **Organ Training** features that talk to the server) |
+| **Python** | 3.10 or newer (for modules that use the pitch/session server: **Carnatic Training**, **Melody Capture**, parts of **Organ Training**) |
 | **Node.js** | 18 or newer (to build and run the web UI) |
 
 **Headphones** are strongly recommended for **Ear Training** (and any module that plays reference tones), so synthesized sound does not confuse what the mic hears.
@@ -58,61 +69,51 @@ Open **[http://localhost:5173](http://localhost:5173)** in your browser.
 
 ### 3. Home screen
 
-You’ll see **SaPaSa** and five practice modules. Use **← Home** (or equivalent) inside any module to return here.
+You’ll see **SaPaSa** and **six** practice modules. Use **← Home** (or equivalent) inside any module to return here.
 
 ---
 
-## The five modules (what each one is for)
+## The six modules (what each one is for)
 
 ### Carnatic Training (live pitch — needs the Python server)
 
-This is the **main pitch monitor** for serious singing practice.
+The **main pitch monitor** for Carnatic singing. Run **`python main.py`** first; the UI streams pitch over **WebSocket** (port **8765** — fix **disconnected** by checking the server and firewall).
 
-1. **Start the backend** (`python main.py`) before you rely on live pitch; the UI connects over the network to analyze your voice.
-2. **Shruti (kattai)** — Pick your **Sa** reference (Carnatic kattai with Western name and Hz). Everything — graph, exercises, optional drone — follows this Sa.
-3. **Listen / Pause listening** — Turns live pitch detection on or off. Pausing freezes the graph without leaving the screen.
-4. **Tanpura strip** — Optional **synthetic tanpura** (Sa–Pa drone, volume, Pa on/off). It uses **your speakers**; if it is loud, it can leak into the mic and confuse pitch detection — keep drone level moderate or use headphones for reference tracks elsewhere.
-5. **Pitch graph** — A scrolling view of your pitch over time against a **JI swara** grid. Colors show **how close** you are to the nearest swarasthana (green ≈ on pitch, warmer/redder = further off). You can **drag** the view vertically; it recenters when you jump registers.
-6. **Sidebar exercises** — Choose a **raga** and an **exercise** (e.g. arohanam/avarohanam, varisai-style material). While an exercise runs, the app can highlight the **expected swara** and advance when you **hold** the right pitch within tolerance. **Play note** plays a reference tone; the app briefly ignores matching so speaker bleed does not skip steps.
-7. **⏱ Holds** — Optional labels for **how long** you sustain stable, in-tune segments on the graph.
-8. **📷 Cam** — Optional small **camera overlay** on the graph (shoulders/posture hints). Drag the header to move it; drag the corner to resize.
-9. **Session timer**, **octave shift**, and **Home** are self-explanatory; hover controls for short tips where provided.
+Set **Shruti (kattai)** so **Sa** (Western name + Hz) drives labels, graph, exercises, and drone. **Listen / Pause listening** toggles detection (pause freezes the trace). Optional **tanpura strip** adds Sa–Pa drone on **speakers** — loud playback can bleed into the mic and confuse pitch; keep it moderate or use **headphones** for other audio.
 
-If something says **not connected**, ensure `python main.py` is running and nothing else is blocking port **8765**.
+The **pitch graph** scrolls your trace against a **JI swara** grid (color ≈ cents from nearest swarasthana); **drag vertically** to explore registers. **Sidebar exercises**: pick **raga** + **material**; the app highlights **expected swara** and steps forward when you **hold** in tolerance. **Play note** plays a reference and briefly ignores matching so speaker bleed doesn’t skip steps. **Holds** annotate sustained in-tune segments; **camera** is a movable/resizable overlay on the graph. Timer, octave shift, **Home**, and tooltips round out the toolbar.
 
 ---
 
-### Ear Training (browser only — no Python required)
+### Melody Capture (live pitch — needs the Python server)
 
-- A **swara keyboard** with **Just Intonation** ratios from a chosen **base Sa**.
-- Adjustable **note length** and **tone** presets (e.g. piano, sine).
-- A **quiz mode** that plays a random swara and scores your guesses (including **alias** names where two syllables share the same pitch).
+Uses the **same mic pitch stream** as Carnatic Training. Aim for **vocals-only** material you play yourself (no backing track on the mic). **Capture** builds a note timeline from live frames; **replay** plays it with **piano** or **sine**, with a **scrubber** under the toolbar for jumping around while testing.
 
-Use **headphones** so the quiz tones stay clear and do not feed back into a mic if one is active.
+Tabs **Reference** / **Attempt** let you capture a phrase then sing along; **Analyze attempt** summarizes pitch/rhythm-style alignment vs the reference. **Processing modes** adjust how aggressively notes are segmented (including options tuned for octave stability). Requires **`python main.py`** when you see disconnected.
+
+---
+
+### Ear Training (browser only — no Python)
+
+**JI swara keyboard** from a chosen **Sa**, plus adjustable note length and tone. **Quiz mode** plays a mystery swara and scores guesses (**aliases** accepted where two names share a pitch). Prefer **headphones** so quiz tones don’t feed back through an open mic.
 
 ---
 
 ### Organ Training (physical singing technique)
 
-- Guided **breath and vocal-organ** exercises (e.g. hisses, timed breath work) in a two-column layout: **exercise list** on the left, **active exercise** on the right.
-- **Progress Graph** (top right, next to the camera control) opens a **progress tracker** with charts tied to your practice data.
-- **Watch shoulders** turns on an **embedded camera** view with live posture metrics (shoulders, head, jaw, etc.). Video is processed **in the browser**; follow your browser’s camera permission prompts.
-- Some completions are saved via the **same backend** (exercise sessions API) when the server is running.
+**Breath and vocal-organ** drills (list + active pane). **Progress Graph** (beside camera) opens charts over saved practice data. **Watch shoulders** enables embedded **camera** metrics (shoulders, head, jaw, mouth — processed **in-browser**). Session completions can persist via the backend when it’s running.
 
 ---
 
 ### Consonant Training
 
-- Structured material on **consonants** in singing — plosives, nasals, fricatives — with **beginner / intermediate / advanced** style progression and **drill** ideas.
-- This module is **guidance-first**; it does not replace a teacher’s ear.
+Articulation drills on **consonants** for singers (plosives, nasals, fricatives) with graded progression — **guidance-first**, not a substitute for a teacher’s ear.
 
 ---
 
 ### Camera Lab
 
-- Full-screen **camera observation** for **posture and alignment** (shoulders, head, jaw, mouth shape) with the same live metrics stack used in embedded camera views.
-- Useful when you want to focus on **body habits** without the pitch graph.
-- **Privacy:** video stays **local** to your browser session; nothing is uploaded by this app.
+Full-screen **posture / alignment** view with the same metric pipeline as mini-camera overlays — useful when you want **body work** without the pitch graph. **Privacy:** video stays **local** in the browser; nothing is uploaded by this app.
 
 ---
 
