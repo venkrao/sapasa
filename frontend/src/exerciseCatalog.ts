@@ -3,12 +3,16 @@ import { CUSTOM_MELODY_RAGA } from './ragas/customMelodyRaga'
 import { PALTA_RAGA } from './ragas/paltaRaga'
 import { MAYAMALAVAGOWLA } from './ragas/mayamalavagowla'
 import { MADHYAMAVATHI } from './ragas/madhyamavathi'
+import { BILAHARI, HAMSADHWANI, MOHANAM } from './ragas/happyRagas3'
 
 export const RAGAS: RagaDefinition[] = [
   CUSTOM_MELODY_RAGA,
   PALTA_RAGA,
   MAYAMALAVAGOWLA,
   MADHYAMAVATHI,
+  HAMSADHWANI,
+  MOHANAM,
+  BILAHARI,
 ]
 
 export function getRaga(ragaId: string): RagaDefinition | undefined {
