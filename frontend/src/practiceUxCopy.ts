@@ -38,10 +38,4 @@ export const PRACTICE_UX = {
 
   analysisLowConfidence:
     'Match scores below rely on fewer confident alignments — repeat capture with clearer vocals or slower source if this feels off.',
-
-  layoutFocusedHint:
-    'Simple toolbar hides tanpura drone and extra session controls behind “More…” until you need them.',
-
-  layoutFullHint:
-    'All controls visible — tanpura drone and session tools stay open.',
 } as const
